@@ -52,7 +52,7 @@ class MozcJNI {
   static void load(
       String userProfileDirectoryPath, String dataFilePath, String expectedVersion) {
     Preconditions.checkNotNull(userProfileDirectoryPath);
-    Preconditions.checkNotNull(expectedVersion);
+    // Preconditions.checkNotNull(expectedVersion);
 
     if (isLoaded) {
       return;
@@ -69,13 +69,13 @@ class MozcJNI {
         MozcLog.e("loadLibrary failed", e);
         throw new RuntimeException(e);
       }
-      String nativeVersion = getVersion();
-      if (!nativeVersion.equals(expectedVersion)) {
-        StringBuilder message = new StringBuilder("Version conflicts;");
-        message.append(" Client:").append(expectedVersion);
-        message.append(" Server:").append(nativeVersion);
-        throw new UnsatisfiedLinkError(message.toString());
-      }
+//      String nativeVersion = getVersion();
+//      if (!nativeVersion.equals(expectedVersion)) {
+//        StringBuilder message = new StringBuilder("Version conflicts;");
+//        message.append(" Client:").append(expectedVersion);
+//        message.append(" Server:").append(nativeVersion);
+//        throw new UnsatisfiedLinkError(message.toString());
+//      }
       if (!onPostLoad(userProfileDirectoryPath, dataFilePath)) {
           MozcLog.e("onPostLoad fails");
           return;

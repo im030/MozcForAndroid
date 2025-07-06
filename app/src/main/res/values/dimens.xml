@@ -156,4 +156,6 @@
     <dimen name="key_preview_qwerty_icon_height">38.4dip</dimen>
     <dimen name="key_preview_emoji_icon_height">36dip</dimen>
 
+    <!-- idk -->
+    <dimen name="pref_inputstyle_description_width">70dip</dimen>
 </resources>

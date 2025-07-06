@@ -52,7 +52,7 @@ class LocalSessionHandler implements SessionHandler {
 
   @Override
   public void initialize(Context context) {
-    try {
+    /* try */{
       ApplicationInfo info = Preconditions.checkNotNull(context).getApplicationInfo();
 
       // Ensure the user profile directory exists.
@@ -70,18 +70,19 @@ class LocalSessionHandler implements SessionHandler {
 
       // Get Java package's version name, to check the version consistency with libmozc.so
       // Note that obtained version name is suffixed by android architecture (e.g., -arm).
-      String versionName =
-          context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
-      Matcher matcher = Pattern.compile("^(\\d+\\.\\d+\\.\\d+\\.\\d+)-\\w+$").matcher(versionName);
-      if (!matcher.matches()) {
-        throw new RuntimeException("Invalid version name: " + versionName);
-      }
+//      String versionName =
+//          context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
+//      Matcher matcher = Pattern.compile("^(\\d+\\.\\d+\\.\\d+\\.\\d+)-\\w+$").matcher(versionName);
+//      if (!matcher.matches()) {
+//        throw new RuntimeException("Invalid version name: " + versionName);
+//      }
 
       // Load the shared object.
-      MozcJNI.load(userProfileDirectory.getAbsolutePath(), null, matcher.group(1));
-    } catch (NameNotFoundException e) {
-      throw new RuntimeException(e);
+      MozcJNI.load(userProfileDirectory.getAbsolutePath(), null, "" /*matcher.group(1)*/);
     }
+//    catch (NameNotFoundException e) {
+//      throw new RuntimeException(e);
+//    }
   }
 
   @Override

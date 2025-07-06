@@ -2,17 +2,17 @@
 JNI_OnLoad T
 JNI_OnUnload T
 __android_log_write U
-__assert2 U
 __ctype_get_mb_cur_max U
 __cxa_atexit U
 __cxa_finalize U
 __errno U
+__isfinite U
+__isnanf U
 __pthread_cleanup_pop U
 __pthread_cleanup_push U
 __sF U
 __stack_chk_fail U
 abort U
-abs U
 access U
 android_set_abort_message U
 btowc U
@@ -22,6 +22,7 @@ close U
 closelog U
 dl_iterate_phdr U
 exit U
+fabs U
 fclose U
 fcntl U
 fflush U
@@ -29,6 +30,7 @@ fmod U
 fopen U
 fprintf U
 fputc U
+fputs U
 fread U
 free U
 freelocale U
@@ -37,7 +39,6 @@ fseeko U
 fstat U
 ftello U
 fwrite U
-getc U
 getenv U
 geteuid U
 getpwuid U
@@ -45,8 +46,6 @@ gettimeofday U
 getuid U
 isalnum U
 isalpha U
-isascii U
-isdigit U
 isdigit_l U
 islower U
 islower_l U
@@ -88,7 +87,6 @@ nanosleep U
 newlocale U
 open U
 openlog U
-posix_memalign U
 pow U
 printf U
 pthread_cond_broadcast U
@@ -133,15 +131,14 @@ sigaction U
 sigemptyset U
 snprintf U
 sprintf U
+sqrt U
 srand U
 sscanf U
 stat U
 strchr U
 strcmp U
 strcoll_l U
-strcpy U
 strerror U
-strerror_r U
 strftime_l U
 strlen U
 strncmp U
@@ -167,7 +164,6 @@ toupper U
 toupper_l U
 towlower_l U
 towupper_l U
-ungetc U
 unlink U
 uselocale U
 usleep U

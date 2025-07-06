@@ -3,11 +3,12 @@ plugins {
 }
 
 android {
-    compileSdk 25
+    compileSdk 34
 
     defaultConfig {
         applicationId "org.mozc.android.inputmethod.japanese"
         minSdk 22
+        //noinspection ExpiredTargetSdkVersion
         targetSdk 25
     }
 
