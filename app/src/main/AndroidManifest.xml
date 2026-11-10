@@ -44,6 +44,7 @@
   <application android:icon="@drawable/application_icon"
                android:label="@string/app_full_name"
                android:allowBackup="false"
+               android:requestLegacyExternalStorage="true"
                android:theme="@style/AppThemeSelector" >
     <service android:name="org.mozc.android.inputmethod.japanese.MozcService"
              android:permission="android.permission.BIND_INPUT_METHOD"

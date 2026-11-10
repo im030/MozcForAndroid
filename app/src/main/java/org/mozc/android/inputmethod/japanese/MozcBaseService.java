@@ -99,7 +99,6 @@ import android.view.View;
 import android.view.Window;
 import android.view.inputmethod.CursorAnchorInfo;
 import android.view.inputmethod.EditorInfo;
-import android.view.inputmethod.InputBinding;
 import android.view.inputmethod.InputConnection;
 
 import java.util.ArrayList;
@@ -121,30 +120,8 @@ public class MozcBaseService extends InputMethodService {
 
   /**
    * InputMethod implementation for MozcService.
-   * This injects the composing text tracking feature by wrapping InputConnection.
    */
   public class MozcInputMethod extends InputMethodService.InputMethodImpl {
-    @Override
-    public void bindInput(InputBinding binding) {
-      binding = new InputBinding(
-          ComposingTextTrackingInputConnection.newInstance(binding.getConnection()),
-          binding.getConnectionToken(),
-          binding.getUid(),
-          binding.getPid());
-      super.bindInput(binding);
-    }
-
-    @Override
-    public void startInput(InputConnection inputConnection, EditorInfo attribute) {
-      super.startInput(
-          ComposingTextTrackingInputConnection.newInstance(inputConnection), attribute);
-    }
-
-    @Override
-    public void restartInput(InputConnection inputConnection, EditorInfo attribute) {
-      super.restartInput(
-          ComposingTextTrackingInputConnection.newInstance(inputConnection), attribute);
-    }
   }
 
   private static class RealFeedbackListener implements FeedbackListener {
@@ -593,6 +570,9 @@ public class MozcBaseService extends InputMethodService {
 
   @VisibleForTesting boolean inputBound = false;
 
+  private InputConnection composingTextTrackingInputConnection;
+  private InputConnection composingTextTrackingBaseConnection;
+
   private Optional<Integer> originalWindowAnimationResourceId = Optional.absent();
 
   private ApplicationCompatibility applicationCompatibility =
@@ -620,7 +600,25 @@ public class MozcBaseService extends InputMethodService {
   @Override
   public void onUnbindInput() {
     inputBound = false;
+    composingTextTrackingBaseConnection = null;
+    composingTextTrackingInputConnection = null;
     super.onUnbindInput();
+  }
+
+  @Override
+  public InputConnection getCurrentInputConnection() {
+    InputConnection baseConnection = super.getCurrentInputConnection();
+    if (baseConnection == null) {
+      composingTextTrackingBaseConnection = null;
+      composingTextTrackingInputConnection = null;
+      return null;
+    }
+    if (baseConnection != composingTextTrackingBaseConnection) {
+      composingTextTrackingBaseConnection = baseConnection;
+      composingTextTrackingInputConnection =
+          ComposingTextTrackingInputConnection.newInstance(baseConnection);
+    }
+    return composingTextTrackingInputConnection;
   }
 
   /**

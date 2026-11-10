@@ -8,8 +8,7 @@ android {
     defaultConfig {
         applicationId "org.mozc.android.inputmethod.japanese"
         minSdk 22
-        //noinspection ExpiredTargetSdkVersion
-        targetSdk 25
+        targetSdk 34
     }
 
     buildTypes {
