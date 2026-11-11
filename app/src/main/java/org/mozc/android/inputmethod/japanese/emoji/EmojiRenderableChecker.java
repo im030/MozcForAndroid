@@ -54,7 +54,6 @@ import java.util.Arrays;
  * Note: this class uses an internal buffer, so is not thread-safe.
  */
 // TODO(hsumita): Fix coding style.
-// TODO(hsumita): Use {@link android.graphics.Paint#hasGlyph(String)} on API 23 and above.
 public class EmojiRenderableChecker {
 
     private static final int TEST_FONT_SIZE = 10;
@@ -103,6 +102,9 @@ public class EmojiRenderableChecker {
     public boolean isRenderable(String string) {
         Preconditions.checkArgument(!TextUtils.isEmpty(string));
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return mPaint.hasGlyph(string);
+        }
 
         // First, use measureText to determine whether or not {@code string} has a single glyph.
         float width = mPaint.measureText(string);

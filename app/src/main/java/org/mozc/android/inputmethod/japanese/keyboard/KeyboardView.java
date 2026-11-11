@@ -396,6 +396,7 @@ public class KeyboardView extends View implements MemoryManageable {
     drawableCache.setSkin(skin);
     popupPreviewPool.setSkin(skin);
     backgroundDrawableFactory.setSkin(skin);
+    backgroundSurface.setSkin(skin);
     if (keyboard.isPresent()) {
       backgroundSurface.reset(this.keyboard, Collections.<MetaState>emptySet());
     }

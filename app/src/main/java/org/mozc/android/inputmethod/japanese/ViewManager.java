@@ -655,6 +655,9 @@ public class ViewManager implements ViewManagerInterface {
     }
 
     // Try to hide a sub view from front to back.
+    if (mozcView.hideClipboardView()) {
+      return true;
+    }
     if (mozcView.hideSymbolInputView()) {
       return true;
     }

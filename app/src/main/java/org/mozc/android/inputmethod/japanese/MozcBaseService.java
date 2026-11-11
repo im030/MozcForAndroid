@@ -32,6 +32,7 @@ package org.mozc.android.inputmethod.japanese;
 import org.mozc.android.inputmethod.japanese.FeedbackManager.FeedbackEvent;
 import org.mozc.android.inputmethod.japanese.FeedbackManager.FeedbackListener;
 import org.mozc.android.inputmethod.japanese.KeycodeConverter.KeyEventInterface;
+import org.mozc.android.inputmethod.japanese.clipboard.ClipboardHistoryManager;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiProviderType;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiUtil;
 import org.mozc.android.inputmethod.japanese.hardwarekeyboard.HardwareKeyboard.CompositionSwitchMode;
@@ -100,6 +101,7 @@ import android.view.Window;
 import android.view.inputmethod.CursorAnchorInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -273,6 +275,75 @@ public class MozcBaseService extends InputMethodService {
     @Override
     public void onUndo(List<TouchEvent> touchEventList) {
       sessionExecutor.undoOrRewind(touchEventList, renderResultCallback);
+    }
+
+    @Override
+    public void onTextUndo() {
+      sendTextEditingShortcut(false);
+    }
+
+    @Override
+    public void onTextRedo() {
+      sendTextEditingShortcut(true);
+    }
+
+    @Override
+    public void onForceCopy() {
+      InputConnection inputConnection = getCurrentInputConnection();
+      if (inputConnection == null) {
+        return;
+      }
+      CharSequence selectedText = inputConnection.getSelectedText(0);
+      if (selectedText == null || selectedText.length() == 0) {
+        Toast.makeText(MozcBaseService.this,
+            R.string.clipboard_copy_empty, Toast.LENGTH_SHORT).show();
+        return;
+      }
+      if (clipboardHistoryManager != null) {
+        clipboardHistoryManager.add(selectedText.toString());
+      }
+      Toast.makeText(MozcBaseService.this,
+          R.string.clipboard_copy_done, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onSelectAll() {
+      InputConnection inputConnection = getCurrentInputConnection();
+      if (inputConnection == null) {
+        return;
+      }
+      inputConnection.performContextMenuAction(android.R.id.selectAll);
+    }
+
+    @Override
+    public void onCut() {
+      InputConnection inputConnection = getCurrentInputConnection();
+      if (inputConnection == null) {
+        return;
+      }
+      CharSequence selectedText = inputConnection.getSelectedText(0);
+      if (selectedText == null || selectedText.length() == 0) {
+        Toast.makeText(MozcBaseService.this,
+            R.string.clipboard_cut_empty, Toast.LENGTH_SHORT).show();
+        return;
+      }
+      if (clipboardHistoryManager != null) {
+        clipboardHistoryManager.add(selectedText.toString());
+      }
+      if (!inputConnection.performContextMenuAction(android.R.id.cut)) {
+        inputConnection.commitText("", 1);
+      }
+      Toast.makeText(MozcBaseService.this,
+          R.string.clipboard_cut_done, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onClipboardEntrySelected(String text) {
+      Preconditions.checkNotNull(text);
+      if (clipboardHistoryManager != null) {
+        clipboardHistoryManager.add(text);
+      }
+      commitText(text);
     }
 
     @Override
@@ -582,6 +653,8 @@ public class MozcBaseService extends InputMethodService {
   // Held for testing.
   private ViewEventListener eventListener;
 
+  private ClipboardHistoryManager clipboardHistoryManager;
+
   @SuppressWarnings("deprecation")
   @SuppressLint("NewApi")
   public MozcBaseService() {
@@ -659,6 +732,9 @@ public class MozcBaseService extends InputMethodService {
 
   @Override
   public void onDestroy() {
+    if (clipboardHistoryManager != null) {
+      clipboardHistoryManager.stop();
+    }
     feedbackManager.release();
     if (sessionExecutor != null) {
       sessionExecutor.syncData();
@@ -681,6 +757,9 @@ public class MozcBaseService extends InputMethodService {
 
     Context context = getApplicationContext();
     isDebugBuild = MozcUtil.isDebug(context);
+
+    clipboardHistoryManager = ClipboardHistoryManager.getInstance(context);
+    clipboardHistoryManager.start();
 
     // TODO(hidehiko): Split following methods by functionalities to improve test coverage and
     //   test stableness.
@@ -1283,6 +1362,25 @@ public class MozcBaseService extends InputMethodService {
         original.getDownTime(), eventTime, action, original.getKeyCode(),
         repeatCount, original.getMetaState(), original.getDeviceId(), original.getScanCode(),
         original.getFlags());
+  }
+
+  /**
+   * Sends Ctrl+Z or Ctrl+Shift+Z to the connected application.
+   */
+  private void sendTextEditingShortcut(boolean withShift) {
+    InputConnection inputConnection = getCurrentInputConnection();
+    if (inputConnection == null) {
+      return;
+    }
+    int metaState = KeyEvent.META_CTRL_ON | KeyEvent.META_CTRL_LEFT_ON;
+    if (withShift) {
+      metaState |= KeyEvent.META_SHIFT_ON | KeyEvent.META_SHIFT_LEFT_ON;
+    }
+    long eventTime = MozcUtil.getUptimeMillis();
+    inputConnection.sendKeyEvent(new KeyEvent(
+        eventTime, eventTime, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_Z, 0, metaState));
+    inputConnection.sendKeyEvent(new KeyEvent(
+        eventTime, eventTime, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_Z, 0, metaState));
   }
 
   /**

@@ -32,6 +32,7 @@ package org.mozc.android.inputmethod.japanese.model;
 import org.mozc.android.inputmethod.japanese.EmoticonData;
 import org.mozc.android.inputmethod.japanese.SymbolData;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiData;
+import org.mozc.android.inputmethod.japanese.emoji.EmojiDataExtra;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiProviderType;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiRenderableChecker;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiUtil;
@@ -47,8 +48,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Manages between MinorCategory and its candidates.
@@ -268,27 +271,29 @@ public class SymbolCandidateStorage {
             emojiDescriptionMap, isCarrierEmojiEnabled);
       case EMOJI_FACE:
         return toEmojiCandidateList(
-            EmojiData.FACE_VALUES, EmojiData.UNICODE_FACE_NAME,
+            EmojiData.FACE_VALUES, EmojiData.UNICODE_FACE_NAME, EmojiDataExtra.FACE_VALUES,
             EmojiData.FACE_PUA_VALUES, carrierEmojiDescriptionSet.faceDescription,
             isUnicodeEmojiEnabled, isCarrierEmojiEnabled);
       case EMOJI_FOOD:
         return toEmojiCandidateList(
-            EmojiData.FOOD_VALUES, EmojiData.UNICODE_FOOD_NAME,
+            EmojiData.FOOD_VALUES, EmojiData.UNICODE_FOOD_NAME, EmojiDataExtra.FOOD_VALUES,
             EmojiData.FOOD_PUA_VALUES, carrierEmojiDescriptionSet.foodDescription,
             isUnicodeEmojiEnabled, isCarrierEmojiEnabled);
       case EMOJI_ACTIVITY:
         return toEmojiCandidateList(
             EmojiData.ACTIVITY_VALUES, EmojiData.UNICODE_ACTIVITY_NAME,
+            EmojiDataExtra.ACTIVITY_VALUES,
             EmojiData.ACTIVITY_PUA_VALUES, carrierEmojiDescriptionSet.activityDescription,
             isUnicodeEmojiEnabled, isCarrierEmojiEnabled);
       case EMOJI_CITY:
         return toEmojiCandidateList(
-            EmojiData.CITY_VALUES, EmojiData.UNICODE_CITY_NAME,
+            EmojiData.CITY_VALUES, EmojiData.UNICODE_CITY_NAME, EmojiDataExtra.CITY_VALUES,
             EmojiData.CITY_PUA_VALUES, carrierEmojiDescriptionSet.cityDescription,
             isUnicodeEmojiEnabled, isCarrierEmojiEnabled);
       case EMOJI_NATURE:
         return toEmojiCandidateList(
             EmojiData.NATURE_VALUES, EmojiData.UNICODE_NATURE_NAME,
+            EmojiDataExtra.NATURE_VALUES,
             EmojiData.NATURE_PUA_VALUES, carrierEmojiDescriptionSet.natureDescription,
             isUnicodeEmojiEnabled, isCarrierEmojiEnabled);
     }
@@ -389,12 +394,16 @@ public class SymbolCandidateStorage {
 
   private CandidateList toEmojiCandidateList(
       String[] unicodeEmojiValues, String[] unicodeEmojiDescriptions,
+      String[] extraEmojiValues,
       String[] carrierEmojiValues, String[] carrierEmojiDescriptions,
       boolean isUnicodeEmojiEnabled, boolean isCarrierEmojiEnabled) {
     CandidateList.Builder builder = CandidateList.newBuilder();
     int index = 0;
 
     if (isUnicodeEmojiEnabled) {
+      Set<String> existingValues = new HashSet<String>(Arrays.asList(unicodeEmojiValues));
+      index += addExtraEmojiCandidateListToBuilder(
+          builder, index, extraEmojiValues, existingValues);
       index += addEmojiCandidateListToBuilder(
           builder, index, unicodeEmojiValues, unicodeEmojiDescriptions);
     }
@@ -408,6 +417,23 @@ public class SymbolCandidateStorage {
       return CandidateList.getDefaultInstance();
     }
     return builder.build();
+  }
+
+  /** @return The number of added candidates. */
+  private int addExtraEmojiCandidateListToBuilder(
+      CandidateList.Builder builder, int startIndex, String[] values, Set<String> excludedValues) {
+    int index = startIndex;
+    for (String value : values) {
+      if (excludedValues.contains(value) || !isRenderableEmoji(value)) {
+        continue;
+      }
+      builder.addCandidates(CandidateWord.newBuilder()
+          .setValue(value)
+          .setId(index)
+          .setIndex(index));
+      ++index;
+    }
+    return index - startIndex;
   }
 
   /** @return The number of added candidates. */

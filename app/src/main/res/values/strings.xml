@@ -326,4 +326,15 @@
       <!-- Unfortunately android.R.string.yes/no correspond to OK/Cancel. -->
       <string name="yes">Yes</string>
       <string name="no">No</string>
+
+      <!-- Clipboard -->
+      <string name="pref_clipboard_history_title">Clipboard history size</string>
+      <string name="pref_clipboard_history_description">Number of text items kept in the internal clipboard history.</string>
+      <string name="clipboard_title">Clipboard</string>
+      <string name="clipboard_empty">No clipboard history</string>
+      <string name="clipboard_clear">Clear</string>
+      <string name="clipboard_copy_done">Copied to clipboard history</string>
+      <string name="clipboard_copy_empty">Select text to copy</string>
+      <string name="clipboard_cut_done">Cut to clipboard history</string>
+      <string name="clipboard_cut_empty">Select text to cut</string>
 </resources>

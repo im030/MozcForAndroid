@@ -68,6 +68,24 @@ public interface ViewEventListener {
    */
   public void onUndo(List<TouchEvent> touchEventList);
 
+  /** Called when the host application's text should be undone. */
+  public void onTextUndo();
+
+  /** Called when the host application's text should be redone. */
+  public void onTextRedo();
+
+  /** Called when the selected text should be stored in the internal clipboard. */
+  public void onForceCopy();
+
+  /** Called when all text in the current input field should be selected. */
+  public void onSelectAll();
+
+  /** Called when the selected text should be cut. */
+  public void onCut();
+
+  /** Called when an entry of the internal clipboard should be committed. */
+  public void onClipboardEntrySelected(String text);
+
   /**
    * Called when a conversion candidate is selected.
    *

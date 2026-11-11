@@ -55,5 +55,12 @@
           android:targetPackage="org.mozc.android.inputmethod.japanese"
           android:targetClass="org.mozc.android.inputmethod.japanese.preference.MozcFragmentSoftwareKeyboardAdvancedSettingsPreferenceActivity" />
     </Preference>
+
+    <org.mozc.android.inputmethod.japanese.preference.SeekbarPreference
+        android:defaultValue="10"
+        android:key="pref_clipboard_history_limit_key"
+        android:max="50"
+        android:summary="@string/pref_clipboard_history_description"
+        android:title="@string/pref_clipboard_history_title" />
   </PreferenceCategory>
 </PreferenceScreen>

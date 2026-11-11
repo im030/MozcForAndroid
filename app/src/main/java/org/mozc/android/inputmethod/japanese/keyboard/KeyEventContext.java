@@ -54,6 +54,7 @@ public class KeyEventContext {
   private final float pressedX;
   private final float pressedY;
   private final float flickThresholdSquared;
+  private final float slideThresholdSquared;
   private final boolean isFlickableKey;
   private final Optional<KeyState> keyState;
   Flick.Direction flickDirection = Flick.Direction.CENTER;
@@ -82,6 +83,7 @@ public class KeyEventContext {
     this.pressedX = pressedX;
     this.pressedY = pressedY;
     this.flickThresholdSquared = flickThresholdSquared;
+    this.slideThresholdSquared = flickThresholdSquared * 4.0f;
     this.isFlickableKey = isFlickable(key, metaState);
     this.keyState = key.getKeyState(metaState);
     this.pointerId = pointerId;
@@ -166,6 +168,10 @@ public class KeyEventContext {
    * the result depends on the timestamp of touch-down event.
    */
   public int getKeyCode() {
+    int slideKeyCode = getSlideKeyCode();
+    if (slideKeyCode != KeyEntity.INVALID_KEY_CODE) {
+      return slideKeyCode;
+    }
     Optional<KeyEntity> keyEntity = getKeyEntity(flickDirection);
     if (!keyEntity.isPresent()
         || (pastLongPressSentTimeout && keyEntity.get().isLongPressTimeoutTrigger())) {
@@ -176,6 +182,62 @@ public class KeyEventContext {
            && keyEntity.get().getLongPressKeyCode() != KeyEntity.INVALID_KEY_CODE
            && pastLongPressSentTimeout
            ? keyEntity.get().getLongPressKeyCode() : keyEntity.get().getKeyCode();
+  }
+
+  /**
+   * Returns a symbol when a letter key is slid down far enough, or INVALID_KEY_CODE.
+   */
+  private int getSlideKeyCode() {
+    if (pastLongPressSentTimeout
+        || flickDirection != Flick.Direction.DOWN || !lastAction.isPresent()) {
+      return KeyEntity.INVALID_KEY_CODE;
+    }
+    float deltaX = lastX - pressedX;
+    float deltaY = lastY - pressedY;
+    if (deltaX * deltaX + deltaY * deltaY < slideThresholdSquared
+        || Math.abs(deltaX) >= Math.abs(deltaY)) {
+      return KeyEntity.INVALID_KEY_CODE;
+    }
+    return getSlideSymbolKeyCode(getPressedKeyCode());
+  }
+
+  /**
+   * Returns the symbol shown below the given letter key, or INVALID_KEY_CODE if there is none.
+   */
+  public static int getSlideSymbolKeyCode(int centerKeyCode) {
+    if (centerKeyCode < 0 || centerKeyCode > Character.MAX_VALUE) {
+      return KeyEntity.INVALID_KEY_CODE;
+    }
+    char character = Character.toLowerCase((char) centerKeyCode);
+    switch (character) {
+      case 'q': return '1';
+      case 'w': return '2';
+      case 'e': return '3';
+      case 'r': return '4';
+      case 't': return '5';
+      case 'y': return '6';
+      case 'u': return '7';
+      case 'i': return '8';
+      case 'o': return '9';
+      case 'p': return '0';
+      case 'a': return '@';
+      case 's': return '*';
+      case 'd': return '+';
+      case 'f': return '-';
+      case 'g': return '=';
+      case 'h': return '/';
+      case 'j': return '#';
+      case 'k': return '(';
+      case 'l': return ')';
+      case 'z': return '\'';
+      case 'x': return ':';
+      case 'c': return '"';
+      case 'v': return '?';
+      case 'b': return '!';
+      case 'n': return '~';
+      case 'm': return '\\';
+      default: return KeyEntity.INVALID_KEY_CODE;
+    }
   }
 
   Set<MetaState> getNextMetaStates(Set<MetaState> originalMetaStates) {
@@ -291,6 +353,9 @@ public class KeyEventContext {
    */
   public Optional<TouchEvent> getTouchEvent() {
     Optional<KeyEntity> keyEntity = getKeyEntity(flickDirection);
+    if (!keyEntity.isPresent()) {
+      keyEntity = getKeyEntity(Flick.Direction.CENTER);
+    }
     if (!keyEntity.isPresent()) {
       return Optional.absent();
     }

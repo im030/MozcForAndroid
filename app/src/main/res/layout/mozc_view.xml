@@ -251,6 +251,13 @@ MozcView(Frame)
                             android:clickable="true"
                             android:visibility="gone"
                             android:soundEffectsEnabled="false" />
+
+                        <org.mozc.android.inputmethod.japanese.clipboard.ClipboardView
+                            android:id="@+id/clipboard_view"
+                            android:layout_width="fill_parent"
+                            android:layout_height="fill_parent"
+                            android:layout_gravity="bottom"
+                            android:visibility="gone" />
                     </FrameLayout>
                 </LinearLayout>
 

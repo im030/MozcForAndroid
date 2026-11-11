@@ -109,6 +109,7 @@
     <!-- button_frame_height = candidate_text_size + candidate_vertical_padding_size * 2 -->
     <dimen name="button_frame_height">40dip</dimen>
     <dimen name="button_frame_button_width">45dip</dimen>
+    <dimen name="button_frame_compact_button_width">40dip</dimen>
     <dimen name="button_frame_button_height">35dip</dimen>
 
     <dimen name="fullscreen_threshold">200dip</dimen>

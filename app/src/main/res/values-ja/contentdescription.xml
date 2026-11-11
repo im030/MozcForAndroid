@@ -230,4 +230,11 @@
     <string name="help_userdictionary_edit_word_key">よみを入力してください</string>
     <string name="cd_voice_input">音声入力</string>
     <string name="cd_narrow_frame_widen_button">キーボードを表示</string>
+    <string name="cd_text_undo">元に戻す</string>
+    <string name="cd_text_redo">やり直す</string>
+    <string name="cd_force_copy">選択したテキストをクリップボード履歴にコピー</string>
+    <string name="cd_select_all">すべてのテキストを選択</string>
+    <string name="cd_cut">選択したテキストをクリップボード履歴に切り取る</string>
+    <string name="cd_clipboard">クリップボード履歴</string>
+    <string name="cd_clipboard_close">クリップボードを閉じる</string>
 </resources>

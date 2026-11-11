@@ -316,4 +316,15 @@
       <!-- Yes/No -->
       <string name="yes">はい</string>
       <string name="no">いいえ</string>
+
+      <!-- Clipboard -->
+      <string name="pref_clipboard_history_title">クリップボード履歴の件数</string>
+      <string name="pref_clipboard_history_description">内部クリップボード履歴に保存するテキストの件数です。</string>
+      <string name="clipboard_title">クリップボード</string>
+      <string name="clipboard_empty">クリップボード履歴はありません</string>
+      <string name="clipboard_clear">消去</string>
+      <string name="clipboard_copy_done">クリップボード履歴にコピーしました</string>
+      <string name="clipboard_copy_empty">コピーするテキストを選択してください</string>
+      <string name="clipboard_cut_done">クリップボード履歴に切り取りました</string>
+      <string name="clipboard_cut_empty">切り取るテキストを選択してください</string>
 </resources>

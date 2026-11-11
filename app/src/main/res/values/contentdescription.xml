@@ -226,4 +226,11 @@
     <string name="help_userdictionary_edit_word_key">Input reading</string>
     <string name="cd_voice_input">Voice input</string>
     <string name="cd_narrow_frame_widen_button">Show the keyboard</string>
+    <string name="cd_text_undo">Undo</string>
+    <string name="cd_text_redo">Redo</string>
+    <string name="cd_force_copy">Copy selected text to clipboard history</string>
+    <string name="cd_select_all">Select all text</string>
+    <string name="cd_cut">Cut selected text to clipboard history</string>
+    <string name="cd_clipboard">Clipboard history</string>
+    <string name="cd_clipboard_close">Close clipboard</string>
 </resources>

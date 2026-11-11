@@ -84,6 +84,36 @@ public abstract class ViewEventDelegator implements ViewEventListener {
   }
 
   @Override
+  public void onTextUndo() {
+    delegated.onTextUndo();
+  }
+
+  @Override
+  public void onTextRedo() {
+    delegated.onTextRedo();
+  }
+
+  @Override
+  public void onForceCopy() {
+    delegated.onForceCopy();
+  }
+
+  @Override
+  public void onSelectAll() {
+    delegated.onSelectAll();
+  }
+
+  @Override
+  public void onCut() {
+    delegated.onCut();
+  }
+
+  @Override
+  public void onClipboardEntrySelected(String text) {
+    delegated.onClipboardEntrySelected(text);
+  }
+
+  @Override
   public void onConversionCandidateSelected(int candidateId, Optional<Integer> rowIndex) {
     delegated.onConversionCandidateSelected(candidateId, Preconditions.checkNotNull(rowIndex));
   }

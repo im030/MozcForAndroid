@@ -277,6 +277,7 @@ public class KeyboardPreviewDrawable extends Drawable {
       backgroundDrawableFactory.setSkin(skin);
       KeyboardViewBackgroundSurface backgroundSurface =
           new KeyboardViewBackgroundSurface(backgroundDrawableFactory, drawableCache);
+      backgroundSurface.setSkin(skin);
       backgroundSurface.reset(Optional.of(keyboard), Collections.<MetaState>emptySet());
       backgroundSurface.draw(canvas);
     }

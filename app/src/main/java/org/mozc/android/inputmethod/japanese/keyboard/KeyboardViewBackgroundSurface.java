@@ -33,6 +33,7 @@ import org.mozc.android.inputmethod.japanese.keyboard.BackgroundDrawableFactory.
 import org.mozc.android.inputmethod.japanese.keyboard.Flick.Direction;
 import org.mozc.android.inputmethod.japanese.keyboard.KeyState.MetaState;
 import org.mozc.android.inputmethod.japanese.view.DrawableCache;
+import org.mozc.android.inputmethod.japanese.view.Skin;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -40,6 +41,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.util.Log;
 
@@ -109,14 +112,21 @@ import javax.annotation.Nullable;
      */
     void drawDrawableAtCenterWithKeepAspectRatio(
         Drawable drawable, int x, int y, int width, int height);
+
+    /** Draws text centered at the given horizontal position. */
+    void drawText(String text, float centerX, float baselineY, float textSize, int color);
   }
 
   private static class SurfaceCanvasImpl implements SurfaceCanvas {
 
     private final Canvas canvas;
+    private final Paint textPaint;
 
     SurfaceCanvasImpl(Canvas canvas) {
       this.canvas = Preconditions.checkNotNull(canvas);
+      textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+      textPaint.setTypeface(Typeface.DEFAULT_BOLD);
+      textPaint.setTextAlign(Paint.Align.CENTER);
     }
 
     @Override
@@ -140,6 +150,13 @@ import javax.annotation.Nullable;
       int scaledHeight = Math.round(drawable.getIntrinsicHeight() * scale);
       drawDrawableInternal(drawable, x + (width - scaledWidth) / 2, y + (height - scaledHeight) / 2,
           scaledWidth, scaledHeight);
+    }
+
+    @Override
+    public void drawText(String text, float centerX, float baselineY, float textSize, int color) {
+      textPaint.setTextSize(textSize);
+      textPaint.setColor(color);
+      canvas.drawText(text, centerX, baselineY, textPaint);
     }
 
     private void drawDrawableInternal(Drawable drawable, int x, int y, int width, int height) {
@@ -188,11 +205,16 @@ import javax.annotation.Nullable;
 
   private final BackgroundDrawableFactory backgroundDrawableFactory;
   private final DrawableCache drawableCache;
+  private Skin skin = Skin.getFallbackInstance();
 
   public KeyboardViewBackgroundSurface(
       BackgroundDrawableFactory backgroundDrawableFactory, DrawableCache drawableCache) {
     this.backgroundDrawableFactory = Preconditions.checkNotNull(backgroundDrawableFactory);
     this.drawableCache = Preconditions.checkNotNull(drawableCache);
+  }
+
+  public void setSkin(Skin skin) {
+    this.skin = Preconditions.checkNotNull(skin);
   }
 
   @VisibleForTesting void draw(SurfaceCanvas surfaceCanvas) {
@@ -248,14 +270,42 @@ import javax.annotation.Nullable;
     }
     int horizontalPadding = keyEntity.isPresent() ? keyEntity.get().getHorizontalPadding() : 0;
     int verticalPadding = keyEntity.isPresent() ? keyEntity.get().getVerticalPadding() : 0;
+    Optional<String> slideSymbol = getSlideSymbol(key, metaStates);
+    float slideSymbolTextSize = Math.max(6.0f, givenHeight * 0.20f);
+    int slideSymbolHeight = slideSymbol.isPresent()
+        ? Math.round(slideSymbolTextSize * 1.05f) : 0;
     int iconWidth = keyEntity.isPresent() ? keyEntity.get().getIconWidth() : givenWidth;
     int iconHeight = keyEntity.isPresent() ? keyEntity.get().getIconHeight() : givenHeight;
     iconWidth = Math.min(iconWidth, givenWidth - horizontalPadding * 2);
-    iconHeight = Math.min(iconHeight, givenHeight - verticalPadding * 2);
+    int availableIconHeight = Math.max(0, givenHeight - verticalPadding * 2 - slideSymbolHeight);
+    if (slideSymbol.isPresent()) {
+      availableIconHeight = Math.round(availableIconHeight * 0.82f);
+    }
+    iconHeight = Math.min(iconHeight, availableIconHeight);
+    int iconAreaHeight = givenHeight - slideSymbolHeight;
     canvas.drawDrawableAtCenterWithKeepAspectRatio(
         getKeyIcon(drawableCache, keyEntity, isPressed).orNull(),
-        x + (givenWidth - iconWidth) / 2, y + (givenHeight - iconHeight) / 2,
+        x + (givenWidth - iconWidth) / 2, y + (iconAreaHeight - iconHeight) / 2,
         iconWidth, iconHeight);
+    if (slideSymbol.isPresent()) {
+      float baselineY = y + givenHeight - Math.max(1.0f, givenHeight * 0.04f);
+      canvas.drawText(slideSymbol.get(), x + givenWidth / 2.0f, baselineY,
+          slideSymbolTextSize, skin.keyIconGuideColor);
+    }
+  }
+
+  private static Optional<String> getSlideSymbol(Key key, Set<MetaState> metaStates) {
+    Optional<KeyEntity> centerKeyEntity =
+        KeyEventContext.getKeyEntity(key, metaStates, Optional.of(Direction.CENTER));
+    if (!centerKeyEntity.isPresent()) {
+      return Optional.absent();
+    }
+    int slideSymbolKeyCode =
+        KeyEventContext.getSlideSymbolKeyCode(centerKeyEntity.get().getKeyCode());
+    if (slideSymbolKeyCode == KeyEntity.INVALID_KEY_CODE) {
+      return Optional.absent();
+    }
+    return Optional.of(String.valueOf((char) slideSymbolKeyCode));
   }
 
   /**

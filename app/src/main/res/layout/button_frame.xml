@@ -37,6 +37,78 @@
     android:gravity="end"
     android:orientation="horizontal" >
 
+    <ImageView
+        android:id="@+id/undo_button"
+        android:layout_width="@dimen/button_frame_button_width"
+        android:layout_height="@dimen/button_frame_button_height"
+        android:layout_gravity="center_vertical"
+        android:layout_marginEnd="2dip"
+        android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="@string/cd_text_undo"
+        android:padding="9dip"
+        android:soundEffectsEnabled="false"
+        android:src="@drawable/ic_undo" />
+
+    <ImageView
+        android:id="@+id/redo_button"
+        android:layout_width="@dimen/button_frame_button_width"
+        android:layout_height="@dimen/button_frame_button_height"
+        android:layout_gravity="center_vertical"
+        android:layout_marginEnd="2dip"
+        android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="@string/cd_text_redo"
+        android:padding="9dip"
+        android:soundEffectsEnabled="false"
+        android:src="@drawable/ic_redo" />
+
+    <ImageView
+        android:id="@+id/select_all_button"
+        android:layout_width="@dimen/button_frame_compact_button_width"
+        android:layout_height="@dimen/button_frame_button_height"
+        android:layout_gravity="center_vertical"
+        android:layout_marginEnd="2dip"
+        android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="@string/cd_select_all"
+        android:padding="8dip"
+        android:soundEffectsEnabled="false"
+        android:src="@drawable/ic_select_all" />
+
+    <ImageView
+        android:id="@+id/cut_button"
+        android:layout_width="@dimen/button_frame_compact_button_width"
+        android:layout_height="@dimen/button_frame_button_height"
+        android:layout_gravity="center_vertical"
+        android:layout_marginEnd="2dip"
+        android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="@string/cd_cut"
+        android:padding="8dip"
+        android:soundEffectsEnabled="false"
+        android:src="@drawable/ic_cut" />
+
+    <ImageView
+        android:id="@+id/copy_button"
+        android:layout_width="@dimen/button_frame_button_width"
+        android:layout_height="@dimen/button_frame_button_height"
+        android:layout_gravity="center_vertical"
+        android:layout_marginEnd="2dip"
+        android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="@string/cd_force_copy"
+        android:padding="9dip"
+        android:soundEffectsEnabled="false"
+        android:src="@drawable/ic_content_copy" />
+
+    <ImageView
+        android:id="@+id/clipboard_button"
+        android:layout_width="@dimen/button_frame_button_width"
+        android:layout_height="@dimen/button_frame_button_height"
+        android:layout_gravity="center_vertical"
+        android:layout_marginEnd="2dip"
+        android:background="?android:attr/selectableItemBackground"
+        android:contentDescription="@string/cd_clipboard"
+        android:padding="9dip"
+        android:soundEffectsEnabled="false"
+        android:src="@drawable/ic_clipboard" />
+
     <org.mozc.android.inputmethod.japanese.view.MozcImageView
         android:id="@+id/microphone_button"
         android:layout_width="@dimen/button_frame_button_width"

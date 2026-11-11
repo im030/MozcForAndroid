@@ -33,6 +33,9 @@ import org.mozc.android.inputmethod.japanese.CandidateViewManager.KeyboardCandid
 import org.mozc.android.inputmethod.japanese.FeedbackManager.FeedbackEvent;
 import org.mozc.android.inputmethod.japanese.LayoutParamsAnimator.InterpolationListener;
 import org.mozc.android.inputmethod.japanese.ViewManagerInterface.LayoutAdjustment;
+import org.mozc.android.inputmethod.japanese.clipboard.ClipboardEntry;
+import org.mozc.android.inputmethod.japanese.clipboard.ClipboardHistoryManager;
+import org.mozc.android.inputmethod.japanese.clipboard.ClipboardView;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiProviderType;
 import org.mozc.android.inputmethod.japanese.keyboard.BackgroundDrawableFactory;
 import org.mozc.android.inputmethod.japanese.keyboard.KeyEventHandler;
@@ -258,6 +261,15 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     candidateViewManager = new CandidateViewManager(
         getKeyboardCandidateView(),
         FloatingCandidateView.class.cast(findViewById(R.id.floating_candidate_view)));
+
+    getClipboardView().setOnClearClickListener(new ClipboardView.OnClearClickListener() {
+      @Override
+      public void onClearClick() {
+        ClipboardHistoryManager.getInstance(getContext()).clear();
+        getClipboardView().setEntries(
+            ClipboardHistoryManager.getInstance(getContext()).getEntries());
+      }
+    });
   }
 
   private InputFrameFoldButtonClickListener createFoldButtonListener(View view, int height) {
@@ -324,6 +336,77 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     leftFrameStubProxy.setButtonOnClickListener(leftAdjustButtonClickListener);
     rightFrameStubProxy.setButtonOnClickListener(rightAdjustButtonClickListener);
     getMicrophoneButton().setOnClickListener(microphoneButtonClickListener);
+
+    getClipboardButton().setOnClickListener(new OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        viewEventListener.onFireFeedbackEvent(FeedbackEvent.KEY_DOWN);
+        showClipboardView();
+      }
+    });
+    getCopyButton().setOnClickListener(new OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        viewEventListener.onFireFeedbackEvent(FeedbackEvent.KEY_DOWN);
+        playToolbarButtonFeedback(v);
+        viewEventListener.onForceCopy();
+      }
+    });
+    getSelectAllButton().setOnClickListener(new OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        viewEventListener.onFireFeedbackEvent(FeedbackEvent.KEY_DOWN);
+        playToolbarButtonFeedback(v);
+        viewEventListener.onSelectAll();
+      }
+    });
+    getCutButton().setOnClickListener(new OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        viewEventListener.onFireFeedbackEvent(FeedbackEvent.KEY_DOWN);
+        playToolbarButtonFeedback(v);
+        viewEventListener.onCut();
+      }
+    });
+    getUndoButton().setOnClickListener(new OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        viewEventListener.onFireFeedbackEvent(FeedbackEvent.KEY_DOWN);
+        viewEventListener.onTextUndo();
+      }
+    });
+    getRedoButton().setOnClickListener(new OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        viewEventListener.onFireFeedbackEvent(FeedbackEvent.KEY_DOWN);
+        viewEventListener.onTextRedo();
+      }
+    });
+    getClipboardView().setOnEntryClickListener(new ClipboardView.OnEntryClickListener() {
+      @Override
+      public void onEntryClick(ClipboardEntry entry) {
+        viewEventListener.onClipboardEntrySelected(entry.getText());
+        hideClipboardView();
+      }
+    });
+    getClipboardView().setOnCloseClickListener(new ClipboardView.OnCloseClickListener() {
+      @Override
+      public void onCloseClick() {
+        hideClipboardView();
+      }
+    });
+  }
+
+  private static void playToolbarButtonFeedback(View view) {
+    view.animate().cancel();
+    view.setScaleX(0.82f);
+    view.setScaleY(0.82f);
+    view.animate()
+        .scaleX(1.0f)
+        .scaleY(1.0f)
+        .setDuration(140L)
+        .setInterpolator(new DecelerateInterpolator())
+        .start();
   }
 
   public void setKeyEventHandler(KeyEventHandler keyEventHandler) {
@@ -480,6 +563,8 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     symbolInputView.clearAnimation();
     symbolInputView.setVisibility(View.GONE);
 
+    getClipboardView().setVisibility(View.GONE);
+
     // Reset *all* metastates (and set NO_GLOBE as default value).
     // Expecting metastates will be set next initialization.
     getKeyboardView().updateMetaStates(EnumSet.of(MetaState.NO_GLOBE),
@@ -566,6 +651,39 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     return true;
   }
 
+  public boolean showClipboardView() {
+    checkInflated();
+    ClipboardView view = getClipboardView();
+    if (view.getVisibility() == View.VISIBLE) {
+      return false;
+    }
+    hideSymbolInputView();
+    view.setEntries(ClipboardHistoryManager.getInstance(getContext()).getEntries());
+    updateClipboardViewHeight();
+    view.setVisibility(View.VISIBLE);
+    return true;
+  }
+
+  public boolean hideClipboardView() {
+    checkInflated();
+    ClipboardView view = getClipboardView();
+    if (view.getVisibility() != View.VISIBLE) {
+      return false;
+    }
+    view.setVisibility(View.GONE);
+    return true;
+  }
+
+  private void updateClipboardViewHeight() {
+    ClipboardView view = getClipboardView();
+    ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
+    int height = getVisibleViewHeight();
+    if (layoutParams.height != height) {
+      layoutParams.height = height;
+      view.setLayoutParams(layoutParams);
+    }
+  }
+
   private int getButtonFrameHeightIfVisible() {
     return buttonFrameVisible ? dimensionPixelSize.buttonFrameHeight : 0;
   }
@@ -616,6 +734,10 @@ public class MozcView extends FrameLayout implements MemoryManageable {
         setLayoutHeight(getKeyboardView(), getInputFrameHeight());
         setLayoutHeight(getKeyboardFrame(), LayoutParams.WRAP_CONTENT);
       }
+    }
+    if (candidateViewManager != null
+        && getClipboardView().getVisibility() == View.VISIBLE) {
+      updateClipboardViewHeight();
     }
   }
 
@@ -962,6 +1084,41 @@ public class MozcView extends FrameLayout implements MemoryManageable {
   }
 
   @VisibleForTesting
+  View getClipboardButton() {
+    return findViewById(R.id.clipboard_button);
+  }
+
+  @VisibleForTesting
+  View getCopyButton() {
+    return findViewById(R.id.copy_button);
+  }
+
+  @VisibleForTesting
+  View getSelectAllButton() {
+    return findViewById(R.id.select_all_button);
+  }
+
+  @VisibleForTesting
+  View getCutButton() {
+    return findViewById(R.id.cut_button);
+  }
+
+  @VisibleForTesting
+  View getUndoButton() {
+    return findViewById(R.id.undo_button);
+  }
+
+  @VisibleForTesting
+  View getRedoButton() {
+    return findViewById(R.id.redo_button);
+  }
+
+  @VisibleForTesting
+  ClipboardView getClipboardView() {
+    return ClipboardView.class.cast(findViewById(R.id.clipboard_view));
+  }
+
+  @VisibleForTesting
   static int getNarrowFrameHeight(Resources resources) {
     return IS_NARROW_FRAME_ENABLED
         ? resources.getDimensionPixelSize(R.dimen.narrow_frame_height) : 0;
@@ -982,11 +1139,12 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     boolean lastButtonFrameVisible = buttonFrameVisible;
     if (narrowMode) {
       buttonFrameVisible = false;
+      getButtonFrame().setVisibility(View.GONE);
     } else {
-      buttonFrameVisible = microphoneButtonEnabled;
-      int visibility = buttonFrameVisible ? View.VISIBLE : View.GONE;
-      getButtonFrame().setVisibility(visibility);
-      getMicrophoneButton().setVisibility(visibility);
+      buttonFrameVisible = true;
+      getButtonFrame().setVisibility(View.VISIBLE);
+      getMicrophoneButton().setVisibility(
+          microphoneButtonEnabled ? View.VISIBLE : View.GONE);
       getSymbolInputView().setMicrophoneButtonEnabled(microphoneButtonEnabled);
       resetBottomBackgroundHeight();
     }
