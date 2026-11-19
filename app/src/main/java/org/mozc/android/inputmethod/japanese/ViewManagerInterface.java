@@ -43,6 +43,7 @@ import org.mozc.android.inputmethod.japanese.util.CursorAnchorInfoWrapper;
 import org.mozc.android.inputmethod.japanese.view.Skin;
 import com.google.common.annotations.VisibleForTesting;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.inputmethodservice.InputMethodService;
@@ -51,6 +52,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InlineSuggestionsResponse;
 
 /**
  * Interface for ViewManager which manages Input, Candidate and Extracted views.
@@ -180,6 +182,9 @@ public interface ViewManagerInterface extends MemoryManageable {
   public void onConfigurationChanged(Configuration newConfig);
 
   public void onStartInputView(EditorInfo editorInfo);
+
+  @TargetApi(30)
+  public boolean handleInlineSuggestions(InlineSuggestionsResponse response);
 
   public void setCursorAnchorInfo(CursorAnchorInfoWrapper info);
 

@@ -65,6 +65,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -82,6 +83,7 @@ import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InlineSuggestionsResponse;
 
 import java.util.Collections;
 import java.util.List;
@@ -1160,6 +1162,12 @@ public class ViewManager implements ViewManagerInterface {
     if (mozcView != null) {
       mozcView.onStartInputView(editorInfo);
     }
+  }
+
+  @Override
+  @TargetApi(30)
+  public boolean handleInlineSuggestions(InlineSuggestionsResponse response) {
+    return mozcView != null && mozcView.handleInlineSuggestions(response);
   }
 
   @Override

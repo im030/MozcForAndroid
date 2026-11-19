@@ -47,6 +47,7 @@ import org.mozc.android.inputmethod.japanese.model.SymbolMajorCategory;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Command;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.CompositionMode;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Output;
+import org.mozc.android.inputmethod.japanese.ui.InlineSuggestionsView;
 import org.mozc.android.inputmethod.japanese.ui.SideFrameStubProxy;
 import org.mozc.android.inputmethod.japanese.util.CursorAnchorInfoWrapper;
 import org.mozc.android.inputmethod.japanese.view.MozcImageView;
@@ -78,12 +79,16 @@ import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
 import android.view.animation.TranslateAnimation;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InlineSuggestion;
+import android.view.inputmethod.InlineSuggestionsResponse;
 import android.widget.CompoundButton;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -221,6 +226,20 @@ public class MozcView extends FrameLayout implements MemoryManageable {
   @VisibleForTesting boolean fullscreenMode = false;
   @VisibleForTesting boolean narrowMode = false;
   private boolean buttonFrameVisible = true;
+  private boolean inlineSuggestionsVisible = false;
+  private InlineSuggestionsView inlineSuggestionsView;
+  private TextView inlineSuggestionsDebugText;
+  private final Runnable inlineSuggestionsDebugUpdater = new Runnable() {
+    @Override
+    public void run() {
+      if (inlineSuggestionsDebugText == null || inlineSuggestionsView == null
+          || !inlineSuggestionsVisible) {
+        return;
+      }
+      inlineSuggestionsDebugText.setText(inlineSuggestionsView.getDebugInfo());
+      inlineSuggestionsDebugText.postDelayed(this, 500);
+    }
+  };
   private Skin skin = Skin.getFallbackInstance();
   @VisibleForTesting LayoutAdjustment layoutAdjustment = LayoutAdjustment.FILL;
   private int inputFrameHeight = 0;
@@ -270,6 +289,23 @@ public class MozcView extends FrameLayout implements MemoryManageable {
             ClipboardHistoryManager.getInstance(getContext()).getEntries());
       }
     });
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      inlineSuggestionsView = new InlineSuggestionsView(getContext());
+      ViewGroup container = ViewGroup.class.cast(
+          findViewById(R.id.inline_suggestions_container));
+      container.addView(inlineSuggestionsView, new FrameLayout.LayoutParams(
+          LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+      inlineSuggestionsDebugText = new TextView(getContext());
+      inlineSuggestionsDebugText.setTextColor(0xFFFFFFFF);
+      inlineSuggestionsDebugText.setBackgroundColor(0xFFFF00FF);
+      inlineSuggestionsDebugText.setTextSize(10);
+      FrameLayout.LayoutParams debugLayoutParams = new FrameLayout.LayoutParams(
+          LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.START);
+      debugLayoutParams.topMargin = 150;
+      addView(inlineSuggestionsDebugText, debugLayoutParams);
+      inlineSuggestionsDebugText.setVisibility(View.GONE);
+    }
   }
 
   private InputFrameFoldButtonClickListener createFoldButtonListener(View view, int height) {
@@ -538,6 +574,59 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     candidateViewManager.onStartInputView(editorInfo);
   }
 
+  public void setInlineSuggestionsVisible(boolean visible) {
+    checkInflated();
+    if (visible && inlineSuggestionsView == null) {
+      return;
+    }
+    inlineSuggestionsVisible = visible;
+    View container = findViewById(R.id.inline_suggestions_container);
+    if (container != null) {
+      container.setVisibility(visible ? View.VISIBLE : View.GONE);
+    }
+    if (!visible && inlineSuggestionsView != null) {
+      inlineSuggestionsView.clear();
+    }
+    if (!visible && inlineSuggestionsDebugText != null) {
+      inlineSuggestionsDebugText.removeCallbacks(inlineSuggestionsDebugUpdater);
+      inlineSuggestionsDebugText.setVisibility(View.GONE);
+    }
+    updateButtonFrameVisibility();
+  }
+
+  @TargetApi(Build.VERSION_CODES.R)
+  public boolean handleInlineSuggestions(InlineSuggestionsResponse response) {
+    checkInflated();
+    List<InlineSuggestion> suggestions = response.getInlineSuggestions();
+    if (suggestions.isEmpty()) {
+      setInlineSuggestionsVisible(false);
+      return true;
+    }
+    if (inlineSuggestionsView == null) {
+      return false;
+    }
+    if (inlineSuggestionsDebugText != null) {
+      inlineSuggestionsDebugText.setText("inline " + suggestions.size());
+      inlineSuggestionsDebugText.setVisibility(View.VISIBLE);
+    }
+    setInlineSuggestionsVisible(true);
+    inlineSuggestionsView.setSuggestions(suggestions);
+    if (inlineSuggestionsDebugText != null) {
+      inlineSuggestionsDebugText.removeCallbacks(inlineSuggestionsDebugUpdater);
+      inlineSuggestionsDebugText.postDelayed(inlineSuggestionsDebugUpdater, 500);
+    }
+    return true;
+  }
+
+  private void updateButtonFrameVisibility() {
+    if (narrowMode) {
+      getButtonFrame().setVisibility(View.GONE);
+    } else {
+      getButtonFrame().setVisibility(
+          buttonFrameVisible && !inlineSuggestionsVisible ? View.VISIBLE : View.GONE);
+    }
+  }
+
   @TargetApi(21)
   public void setCursorAnchorInfo(CursorAnchorInfoWrapper info) {
     candidateViewManager.setCursorAnchorInfo(info);
@@ -564,6 +653,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     symbolInputView.setVisibility(View.GONE);
 
     getClipboardView().setVisibility(View.GONE);
+    setInlineSuggestionsVisible(false);
 
     // Reset *all* metastates (and set NO_GLOBE as default value).
     // Expecting metastates will be set next initialization.
@@ -850,11 +940,11 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     candidateViewManager.setNarrowMode(narrowMode);
     if (narrowMode) {
       getKeyboardFrame().setVisibility(GONE);
-      getButtonFrame().setVisibility(GONE);
+      updateButtonFrameVisibility();
       getNarrowFrame().setVisibility(IS_NARROW_FRAME_ENABLED ? VISIBLE : GONE);
     } else {
       getKeyboardFrame().setVisibility(VISIBLE);
-      getButtonFrame().setVisibility(buttonFrameVisible ? VISIBLE : GONE);
+      updateButtonFrameVisibility();
       getNarrowFrame().setVisibility(GONE);
       resetKeyboardFrameVisibility();
     }
@@ -1139,10 +1229,10 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     boolean lastButtonFrameVisible = buttonFrameVisible;
     if (narrowMode) {
       buttonFrameVisible = false;
-      getButtonFrame().setVisibility(View.GONE);
+      updateButtonFrameVisibility();
     } else {
       buttonFrameVisible = true;
-      getButtonFrame().setVisibility(View.VISIBLE);
+      updateButtonFrameVisibility();
       getMicrophoneButton().setVisibility(
           microphoneButtonEnabled ? View.VISIBLE : View.GONE);
       getSymbolInputView().setMicrophoneButtonEnabled(microphoneButtonEnabled);

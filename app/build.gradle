@@ -25,6 +25,7 @@ android {
 }
 
 dependencies {
+    implementation 'androidx.autofill:autofill:1.1.0'
     implementation files('libs/org.apache.http.legacy.jar')
     implementation files('libs/android-support-v13.jar')
     implementation files('libs/guava.jar')

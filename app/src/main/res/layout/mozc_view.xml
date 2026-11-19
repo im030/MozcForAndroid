@@ -179,6 +179,13 @@ MozcView(Frame)
                                     android:layout_width="fill_parent"
                                     android:layout_height="fill_parent"
                                     layout="@layout/candidate_view" />
+
+                                <FrameLayout
+                                    android:id="@+id/inline_suggestions_container"
+                                    android:layout_width="fill_parent"
+                                    android:layout_height="@dimen/button_frame_height"
+                                    android:layout_gravity="fill_horizontal|bottom"
+                                    android:visibility="gone" />
                             </FrameLayout>
 
                             <org.mozc.android.inputmethod.japanese.NarrowFrameView

@@ -68,6 +68,7 @@ import org.mozc.android.inputmethod.japanese.util.CursorAnchorInfoWrapper;
 import org.mozc.android.inputmethod.japanese.util.ImeSwitcherFactory;
 import org.mozc.android.inputmethod.japanese.util.ImeSwitcherFactory.ImeSwitcher;
 import org.mozc.android.inputmethod.japanese.util.LauncherIconManagerFactory;
+import org.mozc.android.inputmethod.japanese.view.Skin;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -79,10 +80,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
+import android.content.res.ColorStateList;
 import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.Icon;
 import android.inputmethodservice.InputMethodService;
 import android.media.AudioManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.os.Vibrator;
@@ -94,14 +101,24 @@ import android.text.style.BackgroundColorSpan;
 import android.text.style.CharacterStyle;
 import android.text.style.UnderlineSpan;
 import android.util.Log;
+import android.util.Size;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.inputmethod.CursorAnchorInfo;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InlineSuggestionsRequest;
+import android.view.inputmethod.InlineSuggestionsResponse;
 import android.view.inputmethod.InputConnection;
 import android.widget.Toast;
+import android.widget.inline.InlinePresentationSpec;
+
+import androidx.autofill.inline.UiVersions;
+import androidx.autofill.inline.common.ImageViewStyle;
+import androidx.autofill.inline.common.TextViewStyle;
+import androidx.autofill.inline.common.ViewStyle;
+import androidx.autofill.inline.v1.InlineSuggestionUi;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -868,6 +885,91 @@ public class MozcBaseService extends InputMethodService {
     View inputView = viewManager.createMozcView(this);
     MozcLog.d("end MozcService#onCreateInputView " + System.nanoTime());
     return inputView;
+  }
+
+  private int dpToPx(int dp) {
+    return Math.round(dp * getResources().getDisplayMetrics().density);
+  }
+
+  @TargetApi(Build.VERSION_CODES.R)
+  @Override
+  public InlineSuggestionsRequest onCreateInlineSuggestionsRequest(Bundle uiExtras) {
+    Skin skin = viewManager != null ? viewManager.getSkin() : Skin.getFallbackInstance();
+    int textColor = skin.candidateValueTextColor | 0xFF000000;
+    int subTextColor = (textColor & 0x00FFFFFF) | 0xCC000000;
+    int backgroundColor = getWindowBackgroundColor(skin);
+    boolean isDark = Color.luminance(backgroundColor) < 0.5f;
+    int chipColor = blendColor(backgroundColor, textColor, isDark ? 0.12f : 0.08f);
+    Icon chipBackground = Icon.createWithResource(
+        this, R.drawable.inline_suggestion_background).setTint(chipColor);
+    InlineSuggestionUi.Style style = InlineSuggestionUi.newStyleBuilder()
+        .setSingleIconChipStyle(new ViewStyle.Builder()
+            .setBackgroundColor(Color.TRANSPARENT)
+            .setPadding(0, 0, 0, 0)
+            .build())
+        .setChipStyle(new ViewStyle.Builder()
+            .setBackground(chipBackground)
+            .setPadding(dpToPx(10), 0, dpToPx(10), 0)
+            .build())
+        .setTitleStyle(new TextViewStyle.Builder()
+            .setLayoutMargin(dpToPx(4), 0, dpToPx(4), 0)
+            .setTextColor(textColor)
+            .setTextSize(14f)
+            .build())
+        .setSubtitleStyle(new TextViewStyle.Builder()
+            .setTextColor(subTextColor)
+            .setTextSize(12f)
+            .build())
+        .setStartIconStyle(new ImageViewStyle.Builder()
+            .setTintList(ColorStateList.valueOf(subTextColor))
+            .build())
+        .setEndIconStyle(new ImageViewStyle.Builder()
+            .setTintList(ColorStateList.valueOf(subTextColor))
+            .build())
+        .build();
+    Bundle styles = UiVersions.newStylesBuilder().addStyle(style).build();
+    InlinePresentationSpec spec = new InlinePresentationSpec.Builder(
+        new Size(0, 0),
+        new Size(
+            dpToPx(240),
+            getResources().getDimensionPixelSize(R.dimen.button_frame_height)))
+        .setStyle(styles)
+        .build();
+    List<InlinePresentationSpec> specs = new ArrayList<>(6);
+    for (int i = 0; i < 6; i++) {
+      specs.add(spec);
+    }
+    return new InlineSuggestionsRequest.Builder(specs)
+        .setMaxSuggestionCount(6)
+        .build();
+  }
+
+  private int getWindowBackgroundColor(Skin skin) {
+    Drawable drawable = skin.windowBackgroundDrawable;
+    if (drawable instanceof ColorDrawable) {
+      int color = ((ColorDrawable) drawable).getColor();
+      if (Color.alpha(color) == 0xFF) {
+        return color;
+      }
+    }
+    int textColor = skin.candidateValueTextColor | 0xFF000000;
+    return Color.luminance(textColor) > 0.5f
+        ? Color.rgb(0x26, 0x32, 0x38)
+        : Color.rgb(0xEC, 0xEF, 0xF1);
+  }
+
+  private static int blendColor(int base, int overlay, float fraction) {
+    int red = Math.round(Color.red(base) + (Color.red(overlay) - Color.red(base)) * fraction);
+    int green = Math.round(Color.green(base) + (Color.green(overlay) - Color.green(base)) * fraction);
+    int blue = Math.round(Color.blue(base) + (Color.blue(overlay) - Color.blue(base)) * fraction);
+    return Color.rgb(red, green, blue);
+  }
+
+  @TargetApi(Build.VERSION_CODES.R)
+  @Override
+  public boolean onInlineSuggestionsResponse(InlineSuggestionsResponse response) {
+    MozcLog.d("Inline suggestions response: " + response.getInlineSuggestions().size());
+    return viewManager != null && viewManager.handleInlineSuggestions(response);
   }
 
   private void resetContext() {
