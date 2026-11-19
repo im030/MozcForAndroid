@@ -60,6 +60,7 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -83,6 +84,7 @@ import android.view.inputmethod.InlineSuggestion;
 import android.view.inputmethod.InlineSuggestionsResponse;
 import android.widget.CompoundButton;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -527,6 +529,14 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     rightFrameStubProxy.setSkin(skin);
     getButtonFrame().setBackgroundDrawable(
         skin.buttonFrameBackgroundDrawable.getConstantState().newDrawable());
+    getInlineSuggestionsContainer().setBackgroundDrawable(
+        skin.buttonFrameBackgroundDrawable.getConstantState().newDrawable());
+    tintButtonFrameIcon(getUndoButton(), skin.keyIconMainColor);
+    tintButtonFrameIcon(getRedoButton(), skin.keyIconMainColor);
+    tintButtonFrameIcon(getSelectAllButton(), skin.keyIconMainColor);
+    tintButtonFrameIcon(getCutButton(), skin.keyIconMainColor);
+    tintButtonFrameIcon(getCopyButton(), skin.keyIconMainColor);
+    tintButtonFrameIcon(getClipboardButton(), skin.keyIconMainColor);
     getNarrowFrame().setSkin(skin);
     getKeyboardFrameSeparator().setBackgroundDrawable(
         skin.keyboardFrameSeparatorBackgroundDrawable.getConstantState().newDrawable());
@@ -1166,6 +1176,16 @@ public class MozcView extends FrameLayout implements MemoryManageable {
   @VisibleForTesting
   View getButtonFrame() {
     return findViewById(R.id.button_frame);
+  }
+
+  private View getInlineSuggestionsContainer() {
+    return findViewById(R.id.inline_suggestions_container);
+  }
+
+  private static void tintButtonFrameIcon(View view, int color) {
+    if (view instanceof ImageView) {
+      ((ImageView) view).setColorFilter(color, PorterDuff.Mode.SRC_IN);
+    }
   }
 
   @VisibleForTesting

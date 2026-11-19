@@ -288,7 +288,7 @@ import javax.annotation.Nullable;
         x + (givenWidth - iconWidth) / 2, y + (iconAreaHeight - iconHeight) / 2,
         iconWidth, iconHeight);
     if (slideSymbol.isPresent()) {
-      float baselineY = y + givenHeight - Math.max(1.0f, givenHeight * 0.04f);
+      float baselineY = y + givenHeight - Math.max(1.0f, givenHeight * 0.12f);
       canvas.drawText(slideSymbol.get(), x + givenWidth / 2.0f, baselineY,
           slideSymbolTextSize, skin.keyIconGuideColor);
     }
