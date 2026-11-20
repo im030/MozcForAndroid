@@ -554,6 +554,48 @@ public final class MozcUtil {
   }
 
   /**
+   * Returns true if the editor does not accept composing text and should receive raw key input.
+   */
+  public static boolean isDirectInput(EditorInfo editorInfo) {
+    Preconditions.checkNotNull(editorInfo);
+    return isDirectInput(editorInfo.inputType);
+  }
+
+  /** Returns true if the input type is {@link InputType#TYPE_NULL}. */
+  public static boolean isDirectInput(int inputType) {
+    return (inputType & InputType.TYPE_MASK_CLASS) == InputType.TYPE_NULL;
+  }
+
+  /**
+   * Returns true if the editor requests that suggestions or completions should not be shown.
+   */
+  @SuppressLint("InlinedApi")
+  public static boolean isSuggestionSuppressed(EditorInfo editorInfo) {
+    Preconditions.checkNotNull(editorInfo);
+    int inputType = editorInfo.inputType;
+    if (isDirectInput(inputType) || isPasswordField(inputType)) {
+      return true;
+    }
+    if ((inputType & InputType.TYPE_MASK_CLASS) == InputType.TYPE_CLASS_TEXT) {
+      if ((inputType
+           & (InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE))
+          != 0) {
+        return true;
+      }
+      switch (inputType & InputType.TYPE_MASK_VARIATION) {
+        case InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS:
+        case InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS:
+        case InputType.TYPE_TEXT_VARIATION_URI:
+        case InputType.TYPE_TEXT_VARIATION_FILTER:
+          return true;
+        default:
+          break;
+      }
+    }
+    return isNumberKeyboardPreferred(inputType);
+  }
+
+  /**
    * Returns true if voice input is preferred by EditorInfo.inputType.
    *
    * <p>Caller should check that voice input is allowed or not by isVoiceInputAllowed().

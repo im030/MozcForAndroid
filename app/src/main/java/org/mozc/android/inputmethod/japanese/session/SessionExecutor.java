@@ -821,13 +821,21 @@ public class SessionExecutor {
    * Sends {@code SWITCH_INPUT_FIELD_TYPE} command to the server asynchronously.
    */
   public void switchInputFieldType(InputFieldType inputFieldType) {
+    switchInputFieldType(inputFieldType, false);
+  }
+
+  /**
+   * Sends {@code SWITCH_INPUT_FIELD_TYPE} command with the suggestion suppression state.
+   */
+  public void switchInputFieldType(InputFieldType inputFieldType, boolean suppressSuggestion) {
     Preconditions.checkNotNull(inputFieldType);
     Input.Builder inputBuilder = Input.newBuilder()
         .setType(CommandType.SEND_COMMAND)
         .setCommand(SessionCommand.newBuilder()
             .setType(ProtoCommands.SessionCommand.CommandType.SWITCH_INPUT_FIELD_TYPE))
         .setContext(ProtoCommands.Context.newBuilder()
-            .setInputFieldType(inputFieldType));
+            .setInputFieldType(inputFieldType)
+            .setSuppressSuggestion(suppressSuggestion));
     evaluateAsynchronously(
         inputBuilder, Optional.<KeyEventInterface>absent(), Optional.<EvaluationCallback>absent());
   }

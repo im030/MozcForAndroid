@@ -48,7 +48,6 @@ import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Build;
-import android.text.InputType;
 import android.util.AttributeSet;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -338,28 +337,7 @@ public class FloatingCandidateView extends View {
 
     /** Return true if floating candidate window should be suppressed. */
     private boolean shouldSuppressSuggestion(EditorInfo editorInfo) {
-      if ((editorInfo.inputType & EditorInfo.TYPE_MASK_CLASS) != InputType.TYPE_CLASS_TEXT) {
-        return true;
-      }
-
-      if ((editorInfo.inputType
-           & (InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE))
-           != 0) {
-        return true;
-      }
-
-      switch (editorInfo.inputType & EditorInfo.TYPE_MASK_VARIATION) {
-        case InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS:
-        case InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS:
-        case InputType.TYPE_TEXT_VARIATION_PASSWORD:
-        case InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD:
-        case InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD:
-        case InputType.TYPE_TEXT_VARIATION_URI:
-        case InputType.TYPE_TEXT_VARIATION_FILTER:
-          return true;
-        default:
-          return false;
-      }
+      return MozcUtil.isSuggestionSuppressed(editorInfo);
     }
 
     private void resetBasePosition() {

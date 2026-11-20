@@ -265,10 +265,30 @@ public class MozcBaseService extends InputMethodService {
       }
     }
 
+    private void sendDirectInputKeyEvent(
+        @Nullable ProtoCommands.KeyEvent mozcKeyEvent, @Nullable KeyEventInterface keyEvent) {
+      if (mozcKeyEvent != null && mozcKeyEvent.hasKeyCode()
+          && (keyEvent == null || !keyEvent.getNativeEvent().isPresent())) {
+        int keyCode = mozcKeyEvent.getKeyCode();
+        if (keyCode > 0) {
+          commitText(new String(Character.toChars(keyCode)));
+          return;
+        }
+      }
+      if (keyEvent != null) {
+        sendKeyEvent(keyEvent);
+      }
+    }
+
     @Override
     public void onKeyEvent(
         @Nullable ProtoCommands.KeyEvent mozcKeyEvent, @Nullable KeyEventInterface keyEvent,
         @Nullable KeyboardSpecification keyboardSpecification, List<TouchEvent> touchEventList) {
+      if (directInputMode && (mozcKeyEvent != null || keyEvent != null)) {
+        sendDirectInputKeyEvent(mozcKeyEvent, keyEvent);
+        return;
+      }
+
       if (mozcKeyEvent == null && keyboardSpecification == null) {
         // We don't send a key event to Mozc native layer since {@code mozcKeyEvent} is null, and we
         // don't need to update the keyboard specification since {@code keyboardSpecification} is
@@ -666,6 +686,9 @@ public class MozcBaseService extends InputMethodService {
   private ApplicationCompatibility applicationCompatibility =
       ApplicationCompatibility.getDefaultInstance();
 
+  // True while the connected editor does not accept composing text.
+  private boolean directInputMode;
+
   // Listener called by views.
   // Held for testing.
   private ViewEventListener eventListener;
@@ -995,6 +1018,7 @@ public class MozcBaseService extends InputMethodService {
     resetContext();
     selectionTracker.onFinishInput();
     applicationCompatibility = ApplicationCompatibility.getDefaultInstance();
+    directInputMode = false;
     resetWindowAnimation();
 
     super.onFinishInput();
@@ -1005,6 +1029,7 @@ public class MozcBaseService extends InputMethodService {
     super.onStartInput(attribute, restarting);
 
     applicationCompatibility = ApplicationCompatibility.getInstance(attribute);
+    updateEditorInfoDependentState(attribute);
 
     // Update full screen mode, because the application may be changed.
     viewManager.setFullscreenMode(
@@ -1029,8 +1054,6 @@ public class MozcBaseService extends InputMethodService {
       maybeCommitMushroomResult(attribute, connection);
     }
 
-    // Send the connected field's attributes to the mozc server.
-    sessionExecutor.switchInputFieldType(getInputFieldType(attribute));
     sessionExecutor.updateRequest(
         EmojiUtil.createEmojiRequest(
             Build.VERSION.SDK_INT,
@@ -1039,6 +1062,12 @@ public class MozcBaseService extends InputMethodService {
         Collections.<TouchEvent>emptyList());
     selectionTracker.onStartInput(
         attribute.initialSelStart, attribute.initialSelEnd, isWebEditText(attribute));
+  }
+
+  private void updateEditorInfoDependentState(EditorInfo attribute) {
+    directInputMode = MozcUtil.isDirectInput(attribute);
+    sessionExecutor.switchInputFieldType(
+        getInputFieldType(attribute), MozcUtil.isSuggestionSuppressed(attribute));
   }
 
   /**
@@ -1107,6 +1136,8 @@ public class MozcBaseService extends InputMethodService {
 
   @Override
   public void onStartInputView(EditorInfo attribute, boolean restarting) {
+    updateEditorInfoDependentState(attribute);
+
     InputConnection inputConnection = getCurrentInputConnection();
     if (inputConnection != null && Build.VERSION.SDK_INT >= 21) {
       viewManager.setCursorAnchorInfoEnabled(enableCursorAnchorInfo(inputConnection));
@@ -1216,6 +1247,11 @@ public class MozcBaseService extends InputMethodService {
     if (viewManager.isKeyConsumedOnViewAsynchronously(event)) {
       sessionExecutor.sendKeyEvent(KeycodeConverter.getKeyEventInterface(event),
                                    sendKeyToViewCallback);
+      return true;
+    }
+
+    if (directInputMode) {
+      sendKeyEvent(KeycodeConverter.getKeyEventInterface(event));
       return true;
     }
 

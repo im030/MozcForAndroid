@@ -178,6 +178,9 @@ public class JapaneseSoftwareKeyboardModel {
 
   public static Optional<KeyboardMode> getPreferredKeyboardMode(
       int inputType, KeyboardLayout layout) {
+    if (MozcUtil.isDirectInput(inputType)) {
+      return Optional.of(KeyboardMode.ALPHABET);
+    }
     if (MozcUtil.isNumberKeyboardPreferred(inputType)) {
       switch (Preconditions.checkNotNull(layout)) {
         case GODAN:
