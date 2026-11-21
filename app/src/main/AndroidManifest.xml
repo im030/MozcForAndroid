@@ -59,7 +59,6 @@
     <!-- Launcher Icon -->
     <activity android:name="org.mozc.android.inputmethod.japanese.LauncherActivity"
               android:enabled="@bool/show_launcher_icon"
-              android:label="@string/app_full_name"
         android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
