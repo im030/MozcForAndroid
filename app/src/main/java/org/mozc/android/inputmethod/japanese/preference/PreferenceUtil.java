@@ -190,6 +190,7 @@ public class PreferenceUtil {
   public static final String PREF_OTHER_USAGE_STATS_KEY = "pref_other_usage_stats_key";
   public static final String PREF_ABOUT_VERSION = "pref_about_version";
   public static final String PREF_LAUNCHER_ICON_VISIBILITY_KEY = "pref_launcher_icon_visibility";
+  public static final String PREF_DEBUG = "pref_debug";
   // Application lifecycle
   public static final String PREF_LAST_LAUNCH_ABI_INDEPENDENT_VERSION_CODE =
       "pref_last_launch_abi_independent_version_code";

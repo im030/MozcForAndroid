@@ -44,6 +44,7 @@ import org.mozc.android.inputmethod.japanese.keyboard.Keyboard;
 import org.mozc.android.inputmethod.japanese.keyboard.KeyboardView;
 import org.mozc.android.inputmethod.japanese.model.SymbolCandidateStorage;
 import org.mozc.android.inputmethod.japanese.model.SymbolMajorCategory;
+import org.mozc.android.inputmethod.japanese.preference.PreferenceUtil;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Command;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.CompositionMode;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Output;
@@ -68,6 +69,7 @@ import android.inputmethodservice.InputMethodService.Insets;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.preference.PreferenceManager;
 import android.util.AttributeSet;
 import android.view.Gravity;
 import android.view.View;
@@ -100,6 +102,8 @@ import javax.annotation.Nullable;
  *
  */
 public class MozcView extends FrameLayout implements MemoryManageable {
+
+  boolean debug = false;
 
   @VisibleForTesting
   static class DimensionPixelSize {
@@ -192,6 +196,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
   class SoftwareKeyboardHeightListener implements KeyboardCandidateViewHeightListener {
     @Override
     public void onExpanded() {
+      updateDebugValue();
       if (!isNarrowMode()) {
         changeBottomBackgroundHeight(imeWindowHeight);
       }
@@ -199,6 +204,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
 
     @Override
     public void onCollapse() {
+      updateDebugValue();
       if (!isNarrowMode() && getSymbolInputView().getVisibility() != VISIBLE) {
         resetBottomBackgroundHeight();
       }
@@ -597,7 +603,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     if (!visible && inlineSuggestionsView != null) {
       inlineSuggestionsView.clear();
     }
-    if (!visible && inlineSuggestionsDebugText != null) {
+    if ((!debug || !visible) && inlineSuggestionsDebugText != null) {
       inlineSuggestionsDebugText.removeCallbacks(inlineSuggestionsDebugUpdater);
       inlineSuggestionsDebugText.setVisibility(View.GONE);
     }
@@ -615,7 +621,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     if (inlineSuggestionsView == null) {
       return false;
     }
-    if (inlineSuggestionsDebugText != null) {
+    if (inlineSuggestionsDebugText != null && debug) {
       inlineSuggestionsDebugText.setText("inline " + suggestions.size());
       inlineSuggestionsDebugText.setVisibility(View.VISIBLE);
     }
@@ -647,7 +653,14 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     candidateViewManager.setAllowFloatingMode(enabled);
   }
 
+  private void updateDebugValue() {
+    Context ctx = getContext();
+    debug = PreferenceManager.getDefaultSharedPreferences(ctx)
+            .getBoolean(PreferenceUtil.PREF_DEBUG, false);
+  }
+
   public void reset() {
+    updateDebugValue();
     checkInflated();
 
     // Reset keyboard frame and view.

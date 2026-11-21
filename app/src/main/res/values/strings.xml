@@ -146,6 +146,7 @@
         <string name="pref_about_privacy_policy_description">Display the privacy policy (webpage).</string>
         <string name="pref_about_oss_credits_description">This software uses open source software: view the licenses.</string>
         <string name="pref_launcher_icon_visibility_description">Display application icon in the launcher</string>
+        <string name="pref_debug">Debug mode</string>
 
     <!-- Preference Values -->
     <string name="pref_input_style_setting_entry_toggle">Toggle</string>
