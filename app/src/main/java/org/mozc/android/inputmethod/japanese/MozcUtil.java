@@ -595,6 +595,52 @@ public final class MozcUtil {
     return isNumberKeyboardPreferred(inputType);
   }
 
+  /** Returns true if the editor requests ASCII-only input (IME_FLAG_FORCE_ASCII). */
+  public static boolean isForceAscii(EditorInfo editorInfo) {
+    return editorInfo != null && isForceAscii(editorInfo.imeOptions);
+  }
+
+  /** Returns true if {@code imeOptions} contains IME_FLAG_FORCE_ASCII. */
+  public static boolean isForceAscii(int imeOptions) {
+    return (imeOptions & EditorInfo.IME_FLAG_FORCE_ASCII) != 0;
+  }
+
+  /**
+   * Returns true if the editor disables personalized learning (e.g. incognito fields).
+   * Mirrors fcitx5-android's CapabilityFlag.Sensitive mapping.
+   */
+  @SuppressLint("InlinedApi")
+  public static boolean isNoPersonalizedLearning(EditorInfo editorInfo) {
+    return editorInfo != null
+        && (editorInfo.imeOptions & EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING) != 0;
+  }
+
+  /** Returns true if the editor is a multiline text field (enter should insert a newline). */
+  public static boolean isMultilineInput(EditorInfo editorInfo) {
+    if (editorInfo == null) {
+      return false;
+    }
+    int inputType = editorInfo.inputType;
+    return (inputType & InputType.TYPE_MASK_CLASS) == InputType.TYPE_CLASS_TEXT
+        && (inputType & (InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            | InputType.TYPE_TEXT_FLAG_IME_MULTI_LINE)) != 0;
+  }
+
+  /** Returns true if the editor explicitly requests autocorrect / spell check. */
+  public static boolean isAutoCorrectRequested(EditorInfo editorInfo) {
+    return editorInfo != null
+        && (editorInfo.inputType & InputType.TYPE_MASK_CLASS) == InputType.TYPE_CLASS_TEXT
+        && (editorInfo.inputType & InputType.TYPE_TEXT_FLAG_AUTO_CORRECT) != 0;
+  }
+
+  /** Returns true if the editor is a URI field (e.g. browser address bar). */
+  public static boolean isUriField(EditorInfo editorInfo) {
+    return editorInfo != null
+        && (editorInfo.inputType & InputType.TYPE_MASK_CLASS) == InputType.TYPE_CLASS_TEXT
+        && (editorInfo.inputType & InputType.TYPE_MASK_VARIATION)
+            == InputType.TYPE_TEXT_VARIATION_URI;
+  }
+
   /**
    * Returns true if voice input is preferred by EditorInfo.inputType.
    *

@@ -105,6 +105,7 @@ public class ClientSidePreference {
   private final KeyboardLayout keyboardLayout;
   private final InputStyle inputStyle;
   private final boolean qwertyLayoutForAlphabet;
+  private final boolean englishWordSuggestions;
   private final boolean fullscreenMode;
   private final int flickSensitivity;
   private final EmojiProviderType emojiProviderType;
@@ -135,6 +136,7 @@ public class ClientSidePreference {
     this.keyboardLayout = Preconditions.checkNotNull(keyboardLayout);
     this.inputStyle = Preconditions.checkNotNull(inputStyle);
     this.qwertyLayoutForAlphabet = qwertyLayoutForAlphabet;
+    this.englishWordSuggestions = true;
     this.fullscreenMode = fullscreenMode;
     this.flickSensitivity = flickSensitivity;
     this.emojiProviderType = Preconditions.checkNotNull(emojiProviderType);
@@ -198,6 +200,8 @@ public class ClientSidePreference {
         InputStyle.class, InputStyle.TOGGLE_FLICK);
     qwertyLayoutForAlphabet =
         sharedPreferences.getBoolean(qwertyLayoutForAlphabetKey, false);
+    englishWordSuggestions =
+        sharedPreferences.getBoolean(PreferenceUtil.PREF_ENGLISH_WORD_SUGGESTIONS_KEY, true);
     // On large screen device, pref_portrait_fullscreen_key and
     // pref_landscape_fullscreen_key are omitted
     // so below default value "false" is applied.
@@ -250,6 +254,10 @@ public class ClientSidePreference {
 
   public boolean isQwertyLayoutForAlphabet() {
     return qwertyLayoutForAlphabet;
+  }
+
+  public boolean isEnglishWordSuggestionsEnabled() {
+    return englishWordSuggestions;
   }
 
   public boolean isFullscreenMode() {

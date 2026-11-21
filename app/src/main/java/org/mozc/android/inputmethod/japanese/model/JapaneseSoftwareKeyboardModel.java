@@ -100,6 +100,7 @@ public class JapaneseSoftwareKeyboardModel {
   private InputStyle inputStyle = InputStyle.TOGGLE;
   private boolean qwertyLayoutForAlphabet = false;
   private int inputType;
+  private int imeOptions;
 
   // This is just saved mode for setInputType. So, after that when qwertyLayoutForAlphabet is
   // edited, the mode can be un-expected one.
@@ -117,7 +118,8 @@ public class JapaneseSoftwareKeyboardModel {
 
   public void setKeyboardLayout(KeyboardLayout keyboardLayout) {
     Preconditions.checkNotNull(keyboardLayout);
-    Optional<KeyboardMode> optionalMode = getPreferredKeyboardMode(this.inputType, keyboardLayout);
+    Optional<KeyboardMode> optionalMode =
+        getPreferredKeyboardMode(this.inputType, this.imeOptions, keyboardLayout);
     KeyboardMode mode = optionalMode.or(DEFAULT_KEYBOARD_MODE);
 
     this.keyboardLayout = keyboardLayout;
@@ -155,9 +157,19 @@ public class JapaneseSoftwareKeyboardModel {
    * See the class comment for details.
    */
   public void setInputType(int inputType) {
-    Optional<KeyboardMode> mode = getPreferredKeyboardMode(inputType, this.keyboardLayout);
+    setInputType(inputType, 0);
+  }
+
+  /**
+   * Sets {@code inputType} and {@code imeOptions} and updates the {@code keyboardMode}
+   * if necessary. See the class comment for details.
+   */
+  public void setInputType(int inputType, int imeOptions) {
+    Optional<KeyboardMode> mode =
+        getPreferredKeyboardMode(inputType, imeOptions, this.keyboardLayout);
     if (mode.isPresent()) {
-      if (!getPreferredKeyboardMode(this.inputType, this.keyboardLayout).isPresent()) {
+      if (!getPreferredKeyboardMode(this.inputType, this.imeOptions, this.keyboardLayout)
+          .isPresent()) {
         // Remember the current keyboard mode.
         savedMode = Optional.of(keyboardMode);
       }
@@ -168,6 +180,7 @@ public class JapaneseSoftwareKeyboardModel {
     }
 
     this.inputType = inputType;
+    this.imeOptions = imeOptions;
     if (mode.isPresent()) {
       this.keyboardMode = mode.get();
     } else if (!REMEMBERABLE_KEYBOARD_MODE_SET.contains(this.keyboardMode)) {
@@ -178,7 +191,16 @@ public class JapaneseSoftwareKeyboardModel {
 
   public static Optional<KeyboardMode> getPreferredKeyboardMode(
       int inputType, KeyboardLayout layout) {
-    if (MozcUtil.isDirectInput(inputType)) {
+    return getPreferredKeyboardMode(inputType, 0, layout);
+  }
+
+  /**
+   * Returns the preferred keyboard mode for the given editor attributes.
+   * {@code imeOptions} is used to honor {@link EditorInfo#IME_FLAG_FORCE_ASCII}.
+   */
+  public static Optional<KeyboardMode> getPreferredKeyboardMode(
+      int inputType, int imeOptions, KeyboardLayout layout) {
+    if (MozcUtil.isDirectInput(inputType) || MozcUtil.isForceAscii(imeOptions)) {
       return Optional.of(KeyboardMode.ALPHABET);
     }
     if (MozcUtil.isNumberKeyboardPreferred(inputType)) {

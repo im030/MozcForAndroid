@@ -633,7 +633,7 @@ public class ViewManager implements ViewManagerInterface {
     }
     isVoiceInputEligible = MozcUtil.isVoiceInputPreferred(attribute);
 
-    japaneseSoftwareKeyboardModel.setInputType(attribute.inputType);
+    japaneseSoftwareKeyboardModel.setInputType(attribute.inputType, attribute.imeOptions);
     // TODO(hsumita): Set input type on Hardware keyboard, too. Otherwise, Hiragana input can be
     //                enabled unexpectedly. (e.g. Number text field.)
     propagateSoftwareKeyboardChange(Collections.<TouchEvent>emptyList());

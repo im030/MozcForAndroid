@@ -51,6 +51,8 @@
         <string name="pref_keyboard_layout_title">入力キーボード</string>
         <string name="pref_input_style_title">入力スタイルの設定</string>
         <string name="pref_qwerty_layout_for_alphabet_title">英字入力はQWERTY</string>
+        <string name="pref_english_word_suggestions_title">英語の単語候補</string>
+        <string name="pref_english_word_suggestions_description">英字入力モードで辞書による英語の単語補完を表示します</string>
         <string name="pref_flick_sensitivity_title">フリック感度</string>
         <string name="pref_keyboard_height_ratio_title">キーボードの高さ</string>
         <string name="pref_use_portrait_keyboard_settings_for_landscape_title">縦画面の設定を使用する</string>

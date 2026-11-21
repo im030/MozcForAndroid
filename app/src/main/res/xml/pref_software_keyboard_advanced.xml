@@ -31,6 +31,15 @@
 -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
                   xmlns:mozc="http://schemas.android.com/apk/res-auto" >
+  <PreferenceCategory android:title="@string/pref_other_input_support_preference_category_title"
+                      android:persistent="false" >
+    <CheckBoxPreference
+        android:defaultValue="true"
+        android:key="pref_english_word_suggestions_key"
+        android:summary="@string/pref_english_word_suggestions_description"
+        android:title="@string/pref_english_word_suggestions_title" />
+  </PreferenceCategory>
+
   <PreferenceCategory android:title="@string/pref_software_keyboard_preferences_portrait_title"
                       android:key="pref_software_keyboard_advanced_portrait_key"
                       android:persistent="false" >

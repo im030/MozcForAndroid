@@ -35,9 +35,12 @@ import org.mozc.android.inputmethod.japanese.KeycodeConverter.KeyEventInterface;
 import org.mozc.android.inputmethod.japanese.clipboard.ClipboardHistoryManager;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiProviderType;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiUtil;
+import org.mozc.android.inputmethod.japanese.english.EnglishDictionary;
+import org.mozc.android.inputmethod.japanese.english.EnglishInputSession;
 import org.mozc.android.inputmethod.japanese.hardwarekeyboard.HardwareKeyboard.CompositionSwitchMode;
 import org.mozc.android.inputmethod.japanese.hardwarekeyboard.HardwareKeyboardSpecification;
 import org.mozc.android.inputmethod.japanese.keyboard.Keyboard.KeyboardSpecification;
+import org.mozc.android.inputmethod.japanese.model.JapaneseSoftwareKeyboardModel;
 import org.mozc.android.inputmethod.japanese.model.SelectionTracker;
 import org.mozc.android.inputmethod.japanese.model.SymbolCandidateStorage.SymbolHistoryStorage;
 import org.mozc.android.inputmethod.japanese.model.SymbolMajorCategory;
@@ -120,6 +123,8 @@ import androidx.autofill.inline.common.TextViewStyle;
 import androidx.autofill.inline.common.ViewStyle;
 import androidx.autofill.inline.v1.InlineSuggestionUi;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -221,18 +226,33 @@ public class MozcBaseService extends InputMethodService {
   @VisibleForTesting class MozcEventListener implements ViewEventListener {
     @Override
     public void onConversionCandidateSelected(int candidateId, Optional<Integer> rowIndex) {
+      if (englishInputSession != null && englishInputSession.hasCandidates()) {
+        englishInputSession.selectCandidate(candidateId);
+        feedbackManager.fireFeedback(FeedbackEvent.CANDIDATE_SELECTED);
+        return;
+      }
       sessionExecutor.submitCandidate(candidateId, rowIndex, renderResultCallback);
       feedbackManager.fireFeedback(FeedbackEvent.CANDIDATE_SELECTED);
     }
 
     @Override
     public void onPageUp() {
+      if (englishInputSession != null && englishInputSession.hasCandidates()) {
+        englishInputSession.pageUp();
+        feedbackManager.fireFeedback(FeedbackEvent.KEY_DOWN);
+        return;
+      }
       sessionExecutor.pageUp(renderResultCallback);
       feedbackManager.fireFeedback(FeedbackEvent.KEY_DOWN);
     }
 
     @Override
     public void onPageDown() {
+      if (englishInputSession != null && englishInputSession.hasCandidates()) {
+        englishInputSession.pageDown();
+        feedbackManager.fireFeedback(FeedbackEvent.KEY_DOWN);
+        return;
+      }
       sessionExecutor.pageDown(renderResultCallback);
       feedbackManager.fireFeedback(FeedbackEvent.KEY_DOWN);
     }
@@ -242,6 +262,11 @@ public class MozcBaseService extends InputMethodService {
                                           boolean updateHistory) {
       Preconditions.checkNotNull(majorCategory);
       Preconditions.checkNotNull(candidate);
+
+      // Commit any pending English composing word before the symbol.
+      if (englishInputSession != null && englishInputSession.isComposing()) {
+        englishInputSession.commitPendingInput();
+      }
 
       // Directly commit the text.
       commitText(candidate);
@@ -289,13 +314,34 @@ public class MozcBaseService extends InputMethodService {
         return;
       }
 
+      // URI fields (e.g. browser address bars): forward cursor keys raw so the app can
+      // handle them natively (mirrors fcitx5-android's handleArrowKey workaround).
+      if (mozcKeyEvent != null && mozcKeyEvent.hasSpecialKey()
+          && MozcUtil.isUriField(getCurrentInputEditorInfo())
+          && isCursorSpecialKey(mozcKeyEvent.getSpecialKey())) {
+        sendKeyEvent(keyEvent);
+        return;
+      }
+
+      if (englishInputSession != null) {
+        if (mozcKeyEvent == null && keyEvent == null && keyboardSpecification != null) {
+          // Keyboard mode switch (e.g. 英数 → かな): commit any pending English word.
+          englishInputSession.onKeyboardModeChanged(englishSessionHost.isAlphabetKeyboardMode());
+        } else if (englishInputSession.onKeyEvent(mozcKeyEvent, keyEvent)) {
+          return;
+        }
+      }
+
       if (mozcKeyEvent == null && keyboardSpecification == null) {
-        // We don't send a key event to Mozc native layer since {@code mozcKeyEvent} is null, and we
-        // don't need to update the keyboard specification since {@code keyboardSpecification} is
+        // We don't send a key event to Mozc native layer since {@code mozcKeyEvent} is null, and
+        // we don't need to update the keyboard specification since {@code keyboardSpecification} is
         // also null.
         if (keyEvent == null) {
-          // Send a usage information to Mozc native layer.
-          sessionExecutor.touchEventUsageStatsEvent(touchEventList);
+          // Send a usage information to Mozc native layer, unless the editor requests
+          // no personalized learning (IME_FLAG_NO_PERSONALIZED_LEARNING, incognito).
+          if (!noPersonalizedLearning) {
+            sessionExecutor.touchEventUsageStatsEvent(touchEventList);
+          }
         } else {
           // Send a key event (which is generated by Mozc in the usual case) to application.
           Preconditions.checkArgument(touchEventList.isEmpty());
@@ -689,6 +735,184 @@ public class MozcBaseService extends InputMethodService {
   // True while the connected editor does not accept composing text.
   private boolean directInputMode;
 
+  // True while the connected editor requests no personalized learning (incognito).
+  private boolean noPersonalizedLearning;
+
+  // Client-side English word-hint session (active in alphabet mode).
+  @VisibleForTesting EnglishInputSession englishInputSession;
+
+  private final EnglishInputSession.Host englishSessionHost = new EnglishInputSession.Host() {
+    @Override
+    public InputConnection getInputConnection() {
+      return getCurrentInputConnection();
+    }
+
+    @Override
+    public void setComposingText(CharSequence text) {
+      InputConnection ic = getCurrentInputConnection();
+      if (ic == null) {
+        return;
+      }
+      // The English composing text is not part of the mozc session, so teach the
+      // selection tracker about it before updating the editor. Otherwise the resulting
+      // onUpdateSelection looks like an external edit and resets the context (which commits
+      // the composing text and hides the candidate view on every keystroke).
+      if (text.length() == 0) {
+        selectionTracker.onRender(null, null, null);
+      } else {
+        selectionTracker.onRender(null, null, Preedit.newBuilder()
+            .setCursor(text.length())
+            .addSegment(Segment.newBuilder()
+                .setValue(text.toString())
+                .setValueLength(text.length())
+                .setAnnotation(Segment.Annotation.UNDERLINE))
+            .build());
+      }
+      ic.setComposingText(text, 1);
+    }
+
+    @Override
+    public void commitText(CharSequence text) {
+      InputConnection ic = getCurrentInputConnection();
+      if (ic == null) {
+        return;
+      }
+      selectionTracker.onRender(null, text.toString(), null);
+      ic.commitText(text, 1);
+    }
+
+    @Override
+    public boolean isDirectInputMode() {
+      return directInputMode;
+    }
+
+    @Override
+    public boolean isEnglishSuggestionsEnabledByPreference() {
+      return propagatedClientSidePreference != null
+          && propagatedClientSidePreference.isEnglishWordSuggestionsEnabled();
+    }
+
+    @Override
+    public boolean isAlphabetKeyboardMode() {
+      return viewManager != null
+          && viewManager.getActiveSoftwareKeyboardModel() != null
+          && viewManager.getActiveSoftwareKeyboardModel().getKeyboardMode()
+              == JapaneseSoftwareKeyboardModel.KeyboardMode.ALPHABET;
+    }
+
+    @Override
+    public void renderCandidates(List<String> words) {
+      renderEnglishCandidates(words);
+    }
+
+    @Override
+    public void clearCandidates() {
+      renderEnglishCandidates(Collections.<String>emptyList());
+    }
+
+    @Override
+    public boolean performEnterAction() {
+      return sendEditorAction(true);
+    }
+
+    @Override
+    public void sendRawKey(@Nullable KeyEventInterface keyEvent) {
+      sendKeyEvent(keyEvent);
+    }
+
+    @Override
+    public void sendEnterKey() {
+      sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER);
+    }
+
+    @Override
+    public int getCandidatePageSize() {
+      return getResources().getInteger(R.integer.floating_candidate_candidate_num);
+    }
+  };
+
+  /**
+   * Renders English word hints through the normal candidate views by synthesizing a
+   * SUGGESTION-only {@link Command.Output}. Only the view layer is affected; no mozc
+   * session state is changed.
+   */
+  private void renderEnglishCandidates(List<String> words) {
+    if (viewManager == null) {
+      return;
+    }
+    ProtoCandidates.CandidateList.Builder candidates = ProtoCandidates.CandidateList.newBuilder()
+        .setCategory(ProtoCandidates.Category.SUGGESTION);
+    for (int i = 0; i < words.size(); i++) {
+      candidates.addCandidates(ProtoCandidates.CandidateWord.newBuilder()
+          .setId(i)
+          .setValue(words.get(i)));
+    }
+    Command command = Command.newBuilder()
+        // requestSuggestion=true so that an empty candidate list is also rendered (cleared).
+        .setInput(Input.newBuilder()
+            .setType(Input.CommandType.NONE)
+            .setRequestSuggestion(true))
+        .setOutput(Output.newBuilder().setAllCandidateWords(candidates))
+        .build();
+    viewManager.render(command);
+  }
+
+  /** Loads the English dictionary off the main thread; hints activate once it is ready. */
+  private void loadEnglishDictionaryAsync() {
+    final Context context = getApplicationContext();
+    final EnglishInputSession session = englishInputSession;
+    if (context == null || session == null) {
+      return;
+    }
+    Thread thread = new Thread("EnglishDictionaryLoader") {
+      @Override
+      public void run() {
+        InputStream stream = null;
+        try {
+          stream = context.getAssets().open("en_dict.fscd");
+          session.setDictionary(EnglishDictionary.load(stream));
+        } catch (IOException e) {
+          MozcLog.w("Failed to load English dictionary", e);
+        } finally {
+          if (stream != null) {
+            try {
+              stream.close();
+            } catch (IOException e) {
+              // Ignore.
+            }
+          }
+        }
+      }
+    };
+    thread.setDaemon(true);
+    thread.start();
+  }
+
+  private static boolean isCursorSpecialKey(ProtoCommands.KeyEvent.SpecialKey specialKey) {
+    switch (specialKey) {
+      case LEFT:
+      case RIGHT:
+      case UP:
+      case DOWN:
+      case VIRTUAL_LEFT:
+      case VIRTUAL_RIGHT:
+      case VIRTUAL_UP:
+      case VIRTUAL_DOWN:
+      case HOME:
+      case END:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  private static boolean isDpadKeyCode(int keyCode) {
+    return keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+        || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+        || keyCode == KeyEvent.KEYCODE_DPAD_UP
+        || keyCode == KeyEvent.KEYCODE_DPAD_DOWN;
+  }
+
   // Listener called by views.
   // Held for testing.
   private ViewEventListener eventListener;
@@ -819,6 +1043,9 @@ public class MozcBaseService extends InputMethodService {
     sendSyncDataCommandHandler.sendEmptyMessageDelayed(
         SendSyncDataCommandHandler.WHAT, SendSyncDataCommandHandler.SYNC_DATA_COMMAND_PERIOD);
     this.sharedPreferences = sharedPreferences;
+
+    englishInputSession = new EnglishInputSession(englishSessionHost);
+    loadEnglishDictionaryAsync();
   }
 
   /**
@@ -1019,6 +1246,10 @@ public class MozcBaseService extends InputMethodService {
     selectionTracker.onFinishInput();
     applicationCompatibility = ApplicationCompatibility.getDefaultInstance();
     directInputMode = false;
+    noPersonalizedLearning = false;
+    if (englishInputSession != null) {
+      englishInputSession.reset();
+    }
     resetWindowAnimation();
 
     super.onFinishInput();
@@ -1066,8 +1297,12 @@ public class MozcBaseService extends InputMethodService {
 
   private void updateEditorInfoDependentState(EditorInfo attribute) {
     directInputMode = MozcUtil.isDirectInput(attribute);
+    noPersonalizedLearning = MozcUtil.isNoPersonalizedLearning(attribute);
     sessionExecutor.switchInputFieldType(
         getInputFieldType(attribute), MozcUtil.isSuggestionSuppressed(attribute));
+    if (englishInputSession != null) {
+      englishInputSession.onEditorInfo(attribute);
+    }
   }
 
   /**
@@ -1252,6 +1487,17 @@ public class MozcBaseService extends InputMethodService {
 
     if (directInputMode) {
       sendKeyEvent(KeycodeConverter.getKeyEventInterface(event));
+      return true;
+    }
+
+    // URI fields: let the app handle cursor movement natively.
+    if (MozcUtil.isUriField(getCurrentInputEditorInfo()) && isDpadKeyCode(keyCode)) {
+      sendDownUpKeyEvents(keyCode);
+      return true;
+    }
+
+    // English word-hint session consumes typing keys while active in alphabet mode.
+    if (englishInputSession != null && englishInputSession.onHardwareKeyEvent(event)) {
       return true;
     }
 
@@ -1600,9 +1846,15 @@ public class MozcBaseService extends InputMethodService {
    * that if custom action label is specified {@code EditorInfo#actionId} is sent instead.
    */
   private boolean sendEditorAction(boolean fromEnterKey) {
+    EditorInfo editorInfo = getCurrentInputEditorInfo();
+    // In multiline fields the enter key should insert a newline, not perform an action,
+    // unless the app explicitly specified a custom action label.
+    if (editorInfo != null && editorInfo.actionLabel == null
+        && MozcUtil.isMultilineInput(editorInfo)) {
+      return false;
+    }
     // If custom action label is specified (=non-null), special action id is also specified.
     // If there is no IME_FLAG_NO_ENTER_ACTION option, we should send the id to the InputConnection.
-    EditorInfo editorInfo = getCurrentInputEditorInfo();
     if (editorInfo != null
         && (editorInfo.imeOptions & EditorInfo.IME_FLAG_NO_ENTER_ACTION) == 0
         && editorInfo.actionLabel != null) {
@@ -1858,6 +2110,13 @@ public class MozcBaseService extends InputMethodService {
       viewManager.setKeyboardHeightRatio(newPreference.getKeyboardHeightRatio());
     }
 
+    if (englishInputSession != null
+        && (oldPreference == null
+            || oldPreference.isEnglishWordSuggestionsEnabled()
+                != newPreference.isEnglishWordSuggestionsEnabled())) {
+      englishInputSession.onPreferenceChanged(newPreference.isEnglishWordSuggestionsEnabled());
+    }
+
     propagatedClientSidePreference  = newPreference;
   }
 
@@ -1974,6 +2233,12 @@ public class MozcBaseService extends InputMethodService {
         break;
       case SelectionTracker.RESET_CONTEXT: {
         sessionExecutor.resetContext();
+
+        // The English composing text is owned by the English session. finishComposingText
+        // below commits it, so clear our buffer to avoid re-inserting it on the next key.
+        if (englishInputSession != null && englishInputSession.isComposing()) {
+          englishInputSession.reset();
+        }
 
         // Commit the current composing text (preedit text), in case we hit an unknown state.
         // Keeping the composing text sometimes makes it impossible for users to input characters,
