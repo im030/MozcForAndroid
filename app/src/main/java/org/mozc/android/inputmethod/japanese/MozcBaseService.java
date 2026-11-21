@@ -50,6 +50,7 @@ import org.mozc.android.inputmethod.japanese.preference.PreferenceUtil;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidates;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Command;
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input.CommandType;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Context.InputFieldType;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.DeletionRange;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.GenericStorageEntry.StorageType;
@@ -446,6 +447,12 @@ public class MozcBaseService extends InputMethodService {
 
     @Override
     public void onExpandSuggestion() {
+      if (englishInputSession != null && englishInputSession.hasCandidates()) {
+        // Client-side English hints: the mozc server has no suggestion state for them
+        // and would return an empty list, leaving the expanded view blank.
+        englishInputSession.expandCandidates();
+        return;
+      }
       sessionExecutor.expandSuggestion(renderResultCallback);
     }
 
@@ -802,12 +809,17 @@ public class MozcBaseService extends InputMethodService {
 
     @Override
     public void renderCandidates(List<String> words) {
-      renderEnglishCandidates(words);
+      renderEnglishCandidates(words, false);
+    }
+
+    @Override
+    public void renderExpandedCandidates(List<String> words) {
+      renderEnglishCandidates(words, true);
     }
 
     @Override
     public void clearCandidates() {
-      renderEnglishCandidates(Collections.<String>emptyList());
+      renderEnglishCandidates(Collections.<String>emptyList(), false);
     }
 
     @Override
@@ -836,7 +848,7 @@ public class MozcBaseService extends InputMethodService {
    * SUGGESTION-only {@link Command.Output}. Only the view layer is affected; no mozc
    * session state is changed.
    */
-  private void renderEnglishCandidates(List<String> words) {
+  private void renderEnglishCandidates(List<String> words, boolean expanded) {
     if (viewManager == null) {
       return;
     }
@@ -847,11 +859,19 @@ public class MozcBaseService extends InputMethodService {
           .setId(i)
           .setValue(words.get(i)));
     }
+    // requestSuggestion=true so that an empty candidate list is also rendered (cleared).
+    Input.Builder input = Input.newBuilder()
+        .setType(Input.CommandType.NONE)
+        .setRequestSuggestion(true);
+    if (expanded) {
+      // Mimic the server's EXPAND_SUGGESTION response so CandidateView takes the
+      // updateForExpandSuggestion path and keeps its expanded (keyboard-folded) state.
+      input.setType(CommandType.SEND_COMMAND)
+          .setCommand(SessionCommand.newBuilder()
+              .setType(SessionCommand.CommandType.EXPAND_SUGGESTION));
+    }
     Command command = Command.newBuilder()
-        // requestSuggestion=true so that an empty candidate list is also rendered (cleared).
-        .setInput(Input.newBuilder()
-            .setType(Input.CommandType.NONE)
-            .setRequestSuggestion(true))
+        .setInput(input)
         .setOutput(Output.newBuilder().setAllCandidateWords(candidates))
         .build();
     viewManager.render(command);

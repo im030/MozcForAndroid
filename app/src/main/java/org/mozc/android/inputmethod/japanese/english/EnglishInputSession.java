@@ -53,6 +53,8 @@ public class EnglishInputSession {
     boolean isAlphabetKeyboardMode();
     /** Renders the given words as SUGGESTION candidates (ids are page-relative indices). */
     void renderCandidates(List<String> words);
+    /** Renders the full hint list as an EXPAND_SUGGESTION response (expanded candidate view). */
+    void renderExpandedCandidates(List<String> words);
     void clearCandidates();
     /** Performs the editor action for the enter key. Returns false if not handled. */
     boolean performEnterAction();
@@ -70,6 +72,8 @@ public class EnglishInputSession {
   private List<String> hints = Collections.emptyList();
   private int pageStart = 0;
   private boolean renderingCandidates = false;
+  // True while the full hint list is shown in the expanded candidate view (keyboard folded).
+  private boolean expanded = false;
 
   public EnglishInputSession(Host host) {
     this.host = host;
@@ -136,6 +140,7 @@ public class EnglishInputSession {
     buffer.setLength(0);
     hints = Collections.emptyList();
     pageStart = 0;
+    expanded = false;
     if (renderingCandidates) {
       renderingCandidates = false;
       host.clearCandidates();
@@ -253,6 +258,9 @@ public class EnglishInputSession {
   }
 
   public void pageDown() {
+    if (expanded) {
+      return;  // expanded view scrolls natively; paging would collapse it
+    }
     int pageSize = Math.max(1, host.getCandidatePageSize());
     if (pageStart + pageSize < hints.size()) {
       pageStart += pageSize;
@@ -261,11 +269,30 @@ public class EnglishInputSession {
   }
 
   public void pageUp() {
+    if (expanded) {
+      return;
+    }
     int pageSize = Math.max(1, host.getCandidatePageSize());
     if (pageStart > 0) {
       pageStart = Math.max(0, pageStart - pageSize);
       renderPage();
     }
+  }
+
+  /**
+   * Shows the full hint list in the expanded candidate view (fold button pressed or the
+   * view scrolled near its bottom). Must be rendered as an EXPAND_SUGGESTION response so
+   * CandidateView keeps its expanded state; the mozc server knows nothing about these
+   * client-side hints and would otherwise return an empty list (blank white view).
+   */
+  public void expandCandidates() {
+    if (hints.isEmpty()) {
+      return;
+    }
+    pageStart = 0;
+    expanded = true;
+    renderingCandidates = true;
+    host.renderExpandedCandidates(hints);
   }
 
   private static boolean isWordChar(char c) {
@@ -331,6 +358,7 @@ public class EnglishInputSession {
   }
 
   private void renderPage() {
+    expanded = false;
     int pageSize = Math.max(1, host.getCandidatePageSize());
     if (hints.isEmpty()) {
       if (renderingCandidates) {
