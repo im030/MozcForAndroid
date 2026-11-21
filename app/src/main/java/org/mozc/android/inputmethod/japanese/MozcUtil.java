@@ -124,7 +124,7 @@ public final class MozcUtil {
   // Tag for logging.
   // This constant value affects only the logs printed by Java layer.
   // If you want to change the tag name, see also kProductPrefix in base/const.h.
-  public static final String LOGTAG = "Mozc";
+  public static final String LOGTAG = "MMozc";
 
   private static Optional<Boolean> isDebug = Optional.<Boolean>absent();
   private static Optional<Boolean> isDevChannel = Optional.<Boolean>absent();

@@ -34,15 +34,15 @@
   <PreferenceCategory android:title="Socket session handler">
     <CheckBoxPreference android:key="pref_tweak_use_socket_session_handler"
         android:title="Use socket session handler" android:defaultValue="false"
-        android:summary="Enable if you want to communicate the Mozc engine via the network. This is very special option so useually disabled." />
+        android:summary="Enable if you want to communicate the MMozc engine via the network. This is very special option so usually disabled." />
     <EditTextPreference android:key="pref_tweak_socket_session_handler_address"
         android:title="Socket server's address" android:defaultValue="10.0.2.2"
         android:dependency="pref_tweak_use_socket_session_handler"
-        android:summary="The address to the Mozc engine server." />
+        android:summary="The address to the MMozc engine server." />
     <EditTextPreference android:key="pref_tweak_socket_session_handler_port"
         android:title="Socket server's port" android:defaultValue="8000"
-        android:numeric="integer" android:dependency="pref_tweak_use_socket_session_handler"
-        android:summary="The port of the Mozc engine server." />
+        android:inputType="number" android:dependency="pref_tweak_use_socket_session_handler"
+        android:summary="The port of the MMozc engine server." />
   </PreferenceCategory>
   <PreferenceCategory android:title="Logging">
     <CheckBoxPreference android:key="pref_tweak_logging_protocol_buffers"

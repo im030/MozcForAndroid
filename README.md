@@ -1,4 +1,17 @@
-# Mozc for Android
+# MMozc for Android
+
+### Modernized Mozc for Android
+
+#### Changes
+
+- Swipe to input symbols for QWERTY keyboard
+- Inline password manager support
+- Fixed unable to input text after submit once on newer Android versions (13+)
+
+---
+
+# Original readme
+
 Mozc for Android バージョン 2.23.2815.103-arm64 をベースにしてキーボードを追加しています。
 
 辞書の再構成やpicファイルの追加に関しては

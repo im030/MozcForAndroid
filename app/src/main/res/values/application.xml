@@ -30,8 +30,8 @@
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -->
 <resources>
-    <string name="app_name">Mozc</string>
-    <string name="app_full_name">Mozc for Android</string>
+    <string name="app_name">MMozc</string>
+    <string name="app_full_name">MMozc for Android</string>
     <string name="developer_organization">Mozc Project Team</string>
     <string name="mozc_preference">Preferences for Mozc</string>
 </resources>

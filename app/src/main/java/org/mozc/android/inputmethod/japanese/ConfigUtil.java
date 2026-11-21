@@ -122,20 +122,11 @@ public class ConfigUtil {
    * - upload_usage_stats.
    */
   static GeneralConfig toGeneralConfig(SharedPreferences sharedPreferences) {
-    GeneralConfig.Builder builder = null;
-
-    Boolean uploadUsageStats = getBoolean(
-        sharedPreferences, PreferenceUtil.PREF_OTHER_USAGE_STATS_KEY);
-    if (uploadUsageStats != null) {
-      builder = maybeCreateGeneralConfigBuilder(builder)
-          .setUploadUsageStats(uploadUsageStats.booleanValue());
-    }
-
+    GeneralConfig.Builder builder = maybeCreateGeneralConfigBuilder(null);
     if (builder != null) {
+      builder.setUploadUsageStats(false);
       return builder.build();
     }
-
-    // No corresponding preference is found, so return the default instance.
     return GeneralConfig.getDefaultInstance();
   }
 

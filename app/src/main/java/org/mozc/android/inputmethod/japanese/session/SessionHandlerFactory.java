@@ -79,7 +79,7 @@ public class SessionHandlerFactory {
     if (sharedPreferences.isPresent()
         && sharedPreferences.get().getBoolean(PREF_TWEAK_USE_SOCKET_SESSION_HANDLER_KEY, false)) {
       try {
-        MozcLog.i("Trying to connect to Mozc server via network");
+        MozcLog.i("Trying to connect to MMozc server via network");
         // If PREF_TWEAK_USE_SOCKET_SESSION_HANDLER_KEY is enabled,
         // try to use SessionHandlerSocketClient.
         // "10.0.2.2" is the host PC's address in emulator environment.
@@ -107,7 +107,7 @@ public class SessionHandlerFactory {
       }
     }
 
-    MozcLog.i("We use local Mozc engine.");
+    MozcLog.i("We use local MMozc engine.");
     return new LocalSessionHandler();
   }
 }
