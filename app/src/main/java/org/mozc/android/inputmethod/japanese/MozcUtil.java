@@ -626,13 +626,6 @@ public final class MozcUtil {
             | InputType.TYPE_TEXT_FLAG_IME_MULTI_LINE)) != 0;
   }
 
-  /** Returns true if the editor explicitly requests autocorrect / spell check. */
-  public static boolean isAutoCorrectRequested(EditorInfo editorInfo) {
-    return editorInfo != null
-        && (editorInfo.inputType & InputType.TYPE_MASK_CLASS) == InputType.TYPE_CLASS_TEXT
-        && (editorInfo.inputType & InputType.TYPE_TEXT_FLAG_AUTO_CORRECT) != 0;
-  }
-
   /** Returns true if the editor is a URI field (e.g. browser address bar). */
   public static boolean isUriField(EditorInfo editorInfo) {
     return editorInfo != null

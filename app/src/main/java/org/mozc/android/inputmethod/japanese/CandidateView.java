@@ -94,6 +94,8 @@ public class CandidateView extends InOutAnimatedFrameLayout implements MemoryMan
     // this method any more until currentCandidateList is replaced with completely different one,
     // this flag is true.
     private boolean isExpanded = false;
+    // Disabled in compact (toolbar-slot) suggestion mode so the strip doesn't auto-expand.
+    private boolean autoExpandEnabled = true;
 
     {
       setSpanBackgroundDrawableType(DrawableType.CANDIDATE_BACKGROUND);
@@ -169,6 +171,10 @@ public class CandidateView extends InOutAnimatedFrameLayout implements MemoryMan
       this.viewEventListener = viewEventListener;
     }
 
+    void setAutoExpandEnabled(boolean enabled) {
+      autoExpandEnabled = enabled;
+    }
+
     @Override
     void reset() {
       super.reset();
@@ -194,7 +200,7 @@ public class CandidateView extends InOutAnimatedFrameLayout implements MemoryMan
     }
 
     void expandSuggestionIfNeeded() {
-      if (calculatedLayout != null) {
+      if (calculatedLayout != null && autoExpandEnabled) {
         // If not yet expanded and current clip bounds is approaching the bottom of calculated
         // layout, expand the candidates. "/3" is a heuristic.
         if (!isExpanded && getScrollY() + getHeight() > calculatedLayout.getContentHeight() / 3) {
@@ -333,6 +339,10 @@ public class CandidateView extends InOutAnimatedFrameLayout implements MemoryMan
   void reset() {
     getInputFrameFoldButton().setChecked(false);
     getConversionCandidateWordView().reset();
+  }
+
+  void setAutoExpandEnabled(boolean enabled) {
+    getConversionCandidateWordView().setAutoExpandEnabled(enabled);
   }
 
   void setInputFrameFoldButtonChecked(boolean checked) {

@@ -88,6 +88,20 @@ public interface ViewManagerInterface extends MemoryManageable {
    */
   public void render(Command outCommand);
 
+  /** Candidate layout: toolbar visible, candidate view hidden/idle. */
+  int CANDIDATE_LAYOUT_NORMAL = 0;
+  /** Candidates shown as one row in the toolbar slot; keyboard visible; fixed total height. */
+  int CANDIDATE_LAYOUT_STRIP = 1;
+  /** Keyboard folded; candidate grid fills the same fixed total height (no window growth). */
+  int CANDIDATE_LAYOUT_EXPANDED = 2;
+
+  /**
+   * Sets the candidate layout mode so showing/expanding candidates never grows the IME
+   * window beyond keyboard + one strip row. Applies to mozc suggestions/conversion output
+   * and client-side word hints alike.
+   */
+  public void setCandidateLayoutMode(int mode);
+
   /**
    * @return true if {@code event} should be consumed by Mozc client side and should be processed
    *         asynchronously.

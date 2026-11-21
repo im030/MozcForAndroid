@@ -605,11 +605,32 @@ public class ViewManager implements ViewManagerInterface {
       return;
     }
 
+    // Fixed-height candidate layout: non-expanded output (mozc suggestions, conversion
+    // candidates and client-side English hints) renders as a single row in the toolbar slot;
+    // EXPAND_SUGGESTION responses fill the same footprint with the keyboard folded.
+    // The IME window never grows beyond keyboard + one strip row.
+    boolean expanding =
+        outCommand.getInput().getType() == ProtoCommands.Input.CommandType.SEND_COMMAND
+        && outCommand.getInput().getCommand().getType()
+            == ProtoCommands.SessionCommand.CommandType.EXPAND_SUGGESTION;
+    int layoutMode = CANDIDATE_LAYOUT_NORMAL;
+    if (outCommand.getOutput().getAllCandidateWords().getCandidatesCount() > 0) {
+      layoutMode = expanding ? CANDIDATE_LAYOUT_EXPANDED : CANDIDATE_LAYOUT_STRIP;
+    }
+    mozcView.setCandidateLayoutMode(layoutMode);
+
     mozcView.setCommand(outCommand);
     if (outCommand.getOutput().getAllCandidateWords().getCandidatesCount() == 0) {
       // If the candidate is empty (i.e. the CandidateView will go to GONE),
       // reset the keyboard so that a user can type keyboard.
       mozcView.resetKeyboardFrameVisibility();
+    }
+  }
+
+  @Override
+  public void setCandidateLayoutMode(int mode) {
+    if (mozcView != null) {
+      mozcView.setCandidateLayoutMode(mode);
     }
   }
 

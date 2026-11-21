@@ -72,8 +72,6 @@ public class EnglishInputSession {
   private List<String> hints = Collections.emptyList();
   private int pageStart = 0;
   private boolean renderingCandidates = false;
-  // True while the full hint list is shown in the expanded candidate view (keyboard folded).
-  private boolean expanded = false;
 
   public EnglishInputSession(Host host) {
     this.host = host;
@@ -91,10 +89,6 @@ public class EnglishInputSession {
         && !host.isDirectInputMode()
         && !MozcUtil.isSuggestionSuppressed(editorInfo)
         && host.isAlphabetKeyboardMode();
-  }
-
-  public boolean isActive() {
-    return shouldBeActive();
   }
 
   public boolean isComposing() {
@@ -140,7 +134,6 @@ public class EnglishInputSession {
     buffer.setLength(0);
     hints = Collections.emptyList();
     pageStart = 0;
-    expanded = false;
     if (renderingCandidates) {
       renderingCandidates = false;
       host.clearCandidates();
@@ -258,9 +251,6 @@ public class EnglishInputSession {
   }
 
   public void pageDown() {
-    if (expanded) {
-      return;  // expanded view scrolls natively; paging would collapse it
-    }
     int pageSize = Math.max(1, host.getCandidatePageSize());
     if (pageStart + pageSize < hints.size()) {
       pageStart += pageSize;
@@ -269,9 +259,6 @@ public class EnglishInputSession {
   }
 
   public void pageUp() {
-    if (expanded) {
-      return;
-    }
     int pageSize = Math.max(1, host.getCandidatePageSize());
     if (pageStart > 0) {
       pageStart = Math.max(0, pageStart - pageSize);
@@ -290,7 +277,6 @@ public class EnglishInputSession {
       return;
     }
     pageStart = 0;
-    expanded = true;
     renderingCandidates = true;
     host.renderExpandedCandidates(hints);
   }
@@ -358,7 +344,6 @@ public class EnglishInputSession {
   }
 
   private void renderPage() {
-    expanded = false;
     int pageSize = Math.max(1, host.getCandidatePageSize());
     if (hints.isEmpty()) {
       if (renderingCandidates) {

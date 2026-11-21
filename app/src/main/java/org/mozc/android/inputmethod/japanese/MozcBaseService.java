@@ -874,6 +874,8 @@ public class MozcBaseService extends InputMethodService {
         .setInput(input)
         .setOutput(Output.newBuilder().setAllCandidateWords(candidates))
         .build();
+    // Compact/expanded layout is decided centrally in ViewManager.render based on the
+    // candidate count and command shape.
     viewManager.render(command);
   }
 

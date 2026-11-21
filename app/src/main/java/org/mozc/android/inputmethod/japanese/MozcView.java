@@ -29,6 +29,10 @@
 
 package org.mozc.android.inputmethod.japanese;
 
+import static org.mozc.android.inputmethod.japanese.ViewManagerInterface.CANDIDATE_LAYOUT_EXPANDED;
+import static org.mozc.android.inputmethod.japanese.ViewManagerInterface.CANDIDATE_LAYOUT_NORMAL;
+import static org.mozc.android.inputmethod.japanese.ViewManagerInterface.CANDIDATE_LAYOUT_STRIP;
+
 import org.mozc.android.inputmethod.japanese.CandidateViewManager.KeyboardCandidateViewHeightListener;
 import org.mozc.android.inputmethod.japanese.FeedbackManager.FeedbackEvent;
 import org.mozc.android.inputmethod.japanese.LayoutParamsAnimator.InterpolationListener;
@@ -169,6 +173,17 @@ public class MozcView extends FrameLayout implements MemoryManageable {
 
     @Override
     public void onClick(View v) {
+      // This listener class is also used for the symbol view's number keyboard; the
+      // fixed-height candidate layout logic only applies to the main keyboard frame.
+      boolean isMainKeyboard = keyboardView == getKeyboardFrame();
+      if (isMainKeyboard && candidateLayoutMode == CANDIDATE_LAYOUT_EXPANDED) {
+        // Unfold: restore keyboard + strip within the fixed total height.
+        if (viewEventListener != null) {
+          viewEventListener.onFireFeedbackEvent(FeedbackEvent.INPUTVIEW_EXPAND);
+        }
+        setCandidateLayoutMode(CANDIDATE_LAYOUT_STRIP);
+        return;
+      }
       if (keyboardView.getHeight() == originalHeight) {
         if (viewEventListener != null) {
           viewEventListener.onFireFeedbackEvent(FeedbackEvent.INPUTVIEW_FOLD);
@@ -178,6 +193,14 @@ public class MozcView extends FrameLayout implements MemoryManageable {
             new HeightLinearInterpolationListener(keyboardView.getHeight(), 0),
             foldKeyboardViewInterpolator, foldDuration, 0);
         CompoundButton.class.cast(v).setChecked(true);
+        if (isMainKeyboard && candidateLayoutMode == CANDIDATE_LAYOUT_STRIP) {
+          // Expand within the fixed height: the grid fills the space as the keyboard
+          // collapses; also request the expanded list (English hints / mozc suggestions).
+          setCandidateLayoutMode(CANDIDATE_LAYOUT_EXPANDED);
+          if (viewEventListener != null) {
+            viewEventListener.onExpandSuggestion();
+          }
+        }
       } else {
         if (viewEventListener != null) {
           viewEventListener.onFireFeedbackEvent(FeedbackEvent.INPUTVIEW_EXPAND);
@@ -198,7 +221,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     public void onExpanded() {
       updateDebugValue();
       if (!isNarrowMode()) {
-        changeBottomBackgroundHeight(imeWindowHeight);
+        changeBottomBackgroundHeight(getVisibleViewHeight());
       }
     }
 
@@ -635,11 +658,87 @@ public class MozcView extends FrameLayout implements MemoryManageable {
   }
 
   private void updateButtonFrameVisibility() {
-    if (narrowMode) {
+    if (narrowMode || candidateLayoutMode != CANDIDATE_LAYOUT_NORMAL) {
       getButtonFrame().setVisibility(View.GONE);
     } else {
       getButtonFrame().setVisibility(
           buttonFrameVisible && !inlineSuggestionsVisible ? View.VISIBLE : View.GONE);
+    }
+  }
+
+  // Candidate layout state. The visible IME height stays fixed at keyboard + one strip row
+  // in every state: STRIP shows candidates in the toolbar slot; EXPANDED folds the keyboard
+  // and lets the candidate grid fill the same footprint (no window growth).
+  private int candidateLayoutMode = CANDIDATE_LAYOUT_NORMAL;
+
+  /**
+   * Sets the candidate layout mode (ViewManagerInterface.CANDIDATE_LAYOUT_*): NORMAL restores
+   * the toolbar, STRIP constrains candidates to one row in the toolbar slot, EXPANDED shows
+   * the candidate grid within the fixed total height while the keyboard is folded.
+   */
+  public void setCandidateLayoutMode(int mode) {
+    if (candidateLayoutMode == mode) {
+      return;
+    }
+    candidateLayoutMode = mode;
+    applyCandidateLayout();
+    updateInputFrameHeight();
+    if (candidateViewManager != null && candidateViewManager.isKeyboardCandidateViewVisible()) {
+      // Keep the background covering exactly the visible area.
+      changeBottomBackgroundHeight(getVisibleViewHeight());
+    }
+  }
+
+  private void applyCandidateLayout() {
+    CandidateView candidateView = getKeyboardCandidateView();
+    View parentFrame = (View) candidateView.getParent();
+    int stripHeight = dimensionPixelSize.buttonFrameHeight;
+    int totalHeight = getInputFrameHeight() + stripHeight;
+    int effectiveMode = narrowMode ? CANDIDATE_LAYOUT_NORMAL : candidateLayoutMode;
+    FrameLayout.LayoutParams layoutParams =
+        (FrameLayout.LayoutParams) candidateView.getLayoutParams();
+    LinearLayout.LayoutParams parentParams =
+        (LinearLayout.LayoutParams) parentFrame.getLayoutParams();
+    if (effectiveMode == CANDIDATE_LAYOUT_STRIP) {
+      getButtonFrame().setVisibility(View.GONE);
+      layoutParams.height = stripHeight;
+      layoutParams.gravity = Gravity.BOTTOM;
+      candidateView.setLayoutParams(layoutParams);
+      // Fix the weighted parent frame to the strip height so fullscreen (wrap_content)
+      // measurement also accounts for it.
+      parentParams.height = stripHeight;
+      parentParams.weight = 0;
+      parentFrame.setLayoutParams(parentParams);
+      candidateView.setAutoExpandEnabled(false);
+      // Restore the keyboard if it was folded (e.g. new input while expanded).
+      resetKeyboardFrameVisibility();
+    } else if (effectiveMode == CANDIDATE_LAYOUT_EXPANDED) {
+      getButtonFrame().setVisibility(View.GONE);
+      layoutParams.height = LayoutParams.MATCH_PARENT;
+      layoutParams.gravity = Gravity.BOTTOM;
+      candidateView.setLayoutParams(layoutParams);
+      if (fullscreenMode) {
+        // wrap_content measurement needs an explicit height.
+        parentParams.height = totalHeight;
+        parentParams.weight = 0;
+      } else {
+        // bottom_frame is constrained to the fixed total height in updateInputFrameHeight,
+        // so the weighted frame (and the candidate grid) smoothly fills the space as the
+        // keyboard collapses — the total visible height never changes.
+        parentParams.height = 0;
+        parentParams.weight = 1;
+      }
+      parentFrame.setLayoutParams(parentParams);
+      candidateView.setAutoExpandEnabled(false);
+    } else {
+      layoutParams.height = LayoutParams.MATCH_PARENT;
+      layoutParams.gravity = Gravity.BOTTOM;
+      candidateView.setLayoutParams(layoutParams);
+      parentParams.height = 0;
+      parentParams.weight = 1;
+      parentFrame.setLayoutParams(parentParams);
+      candidateView.setAutoExpandEnabled(true);
+      updateButtonFrameVisibility();
     }
   }
 
@@ -669,6 +768,10 @@ public class MozcView extends FrameLayout implements MemoryManageable {
 
     // Reset candidate view.
     candidateViewManager.reset();
+    if (candidateLayoutMode != CANDIDATE_LAYOUT_NORMAL) {
+      candidateLayoutMode = CANDIDATE_LAYOUT_NORMAL;
+      applyCandidateLayout();
+    }
 
     // Reset symbol input view visibility. Set Visibility directly (without animation).
     SymbolInputView symbolInputView = getSymbolInputView();
@@ -826,7 +929,9 @@ public class MozcView extends FrameLayout implements MemoryManageable {
         if (isSymbolInputViewVisible) {
           return symbolInputViewHeight;
         } else {
-          return imeWindowHeight;
+          // Fixed footprint: candidates (strip or expanded) never grow the window beyond
+          // keyboard + one strip row; expansion replaces the keyboard within it.
+          return getInputFrameHeight() + dimensionPixelSize.buttonFrameHeight;
         }
       }
     }
@@ -843,7 +948,11 @@ public class MozcView extends FrameLayout implements MemoryManageable {
       if (narrowMode) {
         setLayoutHeight(getBottomFrame(), dimensionPixelSize.narrowImeWindowHeight);
       } else {
-        setLayoutHeight(getBottomFrame(), imeWindowHeight);
+        // In expanded mode the whole input area is constrained to the fixed visible height
+        // so the candidate grid replaces the keyboard without growing the window.
+        setLayoutHeight(getBottomFrame(),
+            candidateLayoutMode == CANDIDATE_LAYOUT_EXPANDED
+                ? getVisibleViewHeight() : imeWindowHeight);
         setLayoutHeight(getKeyboardView(), getInputFrameHeight());
         setLayoutHeight(getKeyboardFrame(), LayoutParams.WRAP_CONTENT);
       }
@@ -972,6 +1081,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
       resetKeyboardFrameVisibility();
     }
 
+    applyCandidateLayout();
     updateInputFrameHeight();
     updateBackgroundColor();
   }
