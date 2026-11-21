@@ -264,9 +264,9 @@ public class MozcBaseService extends InputMethodService {
       Preconditions.checkNotNull(majorCategory);
       Preconditions.checkNotNull(candidate);
 
-      // Commit any pending English composing word before the symbol.
-      if (englishInputSession != null && englishInputSession.isComposing()) {
-        englishInputSession.commitPendingInput();
+      // Flush any pending English word and handle auto-space before the symbol.
+      if (englishInputSession != null) {
+        englishInputSession.onExternalCommit(candidate);
       }
 
       // Directly commit the text.
@@ -786,6 +786,13 @@ public class MozcBaseService extends InputMethodService {
       }
       selectionTracker.onRender(null, text.toString(), null);
       ic.commitText(text, 1);
+    }
+
+    @Override
+    public void deleteBackward() {
+      // Same mechanism as a normal backspace key: the framework's onUpdateSelection
+      // callback keeps the selection tracker in sync.
+      sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL);
     }
 
     @Override

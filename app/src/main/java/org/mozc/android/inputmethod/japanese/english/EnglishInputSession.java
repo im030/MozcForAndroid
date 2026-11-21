@@ -48,6 +48,8 @@ public class EnglishInputSession {
     void setComposingText(CharSequence text);
     /** Commits text, keeping the host's selection tracking in sync. */
     void commitText(CharSequence text);
+    /** Deletes one character before the cursor (like a backspace key), tracker-safe. */
+    void deleteBackward();
     boolean isDirectInputMode();
     boolean isEnglishSuggestionsEnabledByPreference();
     /** True if a space should be appended when a suggested word is selected. */
@@ -74,6 +76,9 @@ public class EnglishInputSession {
   private List<String> hints = Collections.emptyList();
   private int pageStart = 0;
   private boolean renderingCandidates = false;
+  // True right after a suggestion was committed with an auto-inserted trailing space;
+  // typing attaching punctuation (,. ;:?! etc.) removes that space again.
+  private boolean autoSpacePending = false;
 
   public EnglishInputSession(Host host) {
     this.host = host;
@@ -136,6 +141,7 @@ public class EnglishInputSession {
     buffer.setLength(0);
     hints = Collections.emptyList();
     pageStart = 0;
+    autoSpacePending = false;
     if (renderingCandidates) {
       renderingCandidates = false;
       host.clearCandidates();
@@ -163,6 +169,12 @@ public class EnglishInputSession {
         return false;
       }
       char c = (char) code;
+      if (autoSpacePending && isSpaceTrimPunctuation(c)) {
+        // Attach punctuation to the word: remove the auto-inserted space first.
+        trimAutoSpace();
+        host.commitText(String.valueOf(c));
+        return true;
+      }
       if (isWordChar(c)) {
         appendChar(c);
         return true;
@@ -223,6 +235,13 @@ public class EnglishInputSession {
       appendChar((char) unicode);
       return true;
     }
+    int unicode = event.getUnicodeChar();
+    if (autoSpacePending && unicode > 0 && unicode <= Character.MAX_VALUE
+        && isSpaceTrimPunctuation((char) unicode)) {
+      trimAutoSpace();
+      host.commitText(String.valueOf((char) unicode));
+      return true;
+    }
     switch (keyCode) {
       case KeyEvent.KEYCODE_DEL:
         return onBackspace();
@@ -233,6 +252,7 @@ public class EnglishInputSession {
       case KeyEvent.KEYCODE_NUMPAD_ENTER:
         return onEnter(null);
       default:
+        autoSpacePending = false;
         if (isComposing()) {
           commitPendingInput();
         }
@@ -247,12 +267,14 @@ public class EnglishInputSession {
       return;
     }
     String word = hints.get(index);
-    if (host.isInsertSpaceAfterWordEnabled()) {
+    boolean insertSpace = host.isInsertSpaceAfterWordEnabled();
+    if (insertSpace) {
       word = word + " ";
     }
     // commitText replaces the composing region with the selected word.
     host.commitText(word);
     reset();
+    autoSpacePending = insertSpace;
   }
 
   public void pageDown() {
@@ -286,11 +308,60 @@ public class EnglishInputSession {
     host.renderExpandedCandidates(hints);
   }
 
+  /**
+   * Called before text is committed from outside the session (e.g. symbol view selection):
+   * trims the auto-space when the symbol attaches to the preceding word, and flushes any
+   * composing buffer.
+   */
+  public void onExternalCommit(String text) {
+    if (autoSpacePending && text.length() == 1 && isSpaceTrimPunctuation(text.charAt(0))) {
+      trimAutoSpace();
+    }
+    if (isComposing()) {
+      commitPendingInput();
+    }
+    autoSpacePending = false;
+  }
+
+  /**
+   * Removes a previously auto-inserted space. Verifies the character before the cursor is
+   * actually a space, so a stale flag can never delete real text.
+   */
+  private void trimAutoSpace() {
+    InputConnection ic = host.getInputConnection();
+    if (ic != null) {
+      CharSequence before = ic.getTextBeforeCursor(1, 0);
+      if (before != null && before.length() == 1 && before.charAt(0) == ' ') {
+        host.deleteBackward();
+      }
+    }
+    autoSpacePending = false;
+  }
+
+  /** Punctuation that attaches to the preceding word (no space before it in English). */
+  private static boolean isSpaceTrimPunctuation(char c) {
+    switch (c) {
+      case ',':
+      case '.':
+      case ';':
+      case ':':
+      case '?':
+      case '!':
+      case ')':
+      case ']':
+      case '}':
+        return true;
+      default:
+        return false;
+    }
+  }
+
   private static boolean isWordChar(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '-' || c == '\'';
   }
 
   private void appendChar(char c) {
+    autoSpacePending = false;
     if (buffer.length() == 0) {
       c = applyAutoCapitalization(c);
     } else if (hasCapFlag(InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS)) {
@@ -364,6 +435,7 @@ public class EnglishInputSession {
 
   private boolean onBackspace() {
     if (buffer.length() == 0) {
+      autoSpacePending = false;
       return false;  // let the normal path delete app text
     }
     buffer.deleteCharAt(buffer.length() - 1);
