@@ -165,8 +165,10 @@ public class PreferenceUtil {
 
   // Keys for generic preferences.
   public static final String PREF_HARDWARE_KEYMAP = "pref_hardware_keymap";
-  public static final String PREF_VOICE_INPUT_KEY="pref_..._key";
-  public static final String PREF_ENGLISH_WORD_SUGGESTIONS_KEY="pref_e..._key";
+  public static final String PREF_VOICE_INPUT_KEY="pref_voice_input_key";
+  public static final String PREF_ENGLISH_WORD_SUGGESTIONS_KEY="pref_english_word_suggestions_key";
+  public static final String PREF_ENGLISH_WORD_SUGGESTIONS_INSERT_SPACE_KEY=
+      "pref_english_word_suggestions_insert_space_key";
   public static final String PREF_CLIPBOARD_HISTORY_LIMIT = "pref_clipboard_history_limit_key";
   public static final String PREF_HAPTIC_FEEDBACK_KEY = "pref_haptic_feedback_key";
   public static final String PREF_HAPTIC_FEEDBACK_DURATION_KEY =

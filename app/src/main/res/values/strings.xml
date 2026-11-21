@@ -57,6 +57,8 @@
         <string name="pref_qwerty_layout_for_alphabet_title">QWERTY mode</string>
         <string name="pref_english_word_suggestions_title">English word suggestions</string>
         <string name="pref_english_word_suggestions_description">Show English word completions from the dictionary while typing in alphabet (English) mode</string>
+        <string name="pref_english_word_suggestions_insert_space_title">Insert space after word</string>
+        <string name="pref_english_word_suggestions_insert_space_description">Automatically insert a space when an English suggestion is selected</string>
         <string name="pref_flick_sensitivity_title">Flick sensitivity</string>
         <string name="pref_use_portrait_keyboard_settings_for_landscape_title">Use portrait settings</string>
         <string name="pref_keyboard_height_ratio_title">Keyboard height</string>

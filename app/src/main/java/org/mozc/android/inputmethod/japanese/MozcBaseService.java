@@ -800,6 +800,12 @@ public class MozcBaseService extends InputMethodService {
     }
 
     @Override
+    public boolean isInsertSpaceAfterWordEnabled() {
+      return propagatedClientSidePreference != null
+          && propagatedClientSidePreference.isEnglishWordSuggestionsInsertSpaceEnabled();
+    }
+
+    @Override
     public boolean isAlphabetKeyboardMode() {
       return viewManager != null
           && viewManager.getActiveSoftwareKeyboardModel() != null

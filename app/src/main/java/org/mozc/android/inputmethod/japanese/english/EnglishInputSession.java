@@ -50,6 +50,8 @@ public class EnglishInputSession {
     void commitText(CharSequence text);
     boolean isDirectInputMode();
     boolean isEnglishSuggestionsEnabledByPreference();
+    /** True if a space should be appended when a suggested word is selected. */
+    boolean isInsertSpaceAfterWordEnabled();
     boolean isAlphabetKeyboardMode();
     /** Renders the given words as SUGGESTION candidates (ids are page-relative indices). */
     void renderCandidates(List<String> words);
@@ -245,6 +247,9 @@ public class EnglishInputSession {
       return;
     }
     String word = hints.get(index);
+    if (host.isInsertSpaceAfterWordEnabled()) {
+      word = word + " ";
+    }
     // commitText replaces the composing region with the selected word.
     host.commitText(word);
     reset();

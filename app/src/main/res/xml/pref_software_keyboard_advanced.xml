@@ -38,6 +38,13 @@
         android:key="pref_english_word_suggestions_key"
         android:summary="@string/pref_english_word_suggestions_description"
         android:title="@string/pref_english_word_suggestions_title" />
+
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:dependency="pref_english_word_suggestions_key"
+        android:key="pref_english_word_suggestions_insert_space_key"
+        android:summary="@string/pref_english_word_suggestions_insert_space_description"
+        android:title="@string/pref_english_word_suggestions_insert_space_title" />
   </PreferenceCategory>
 
   <PreferenceCategory android:title="@string/pref_software_keyboard_preferences_portrait_title"
