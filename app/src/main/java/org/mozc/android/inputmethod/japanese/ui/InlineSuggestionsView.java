@@ -39,6 +39,8 @@ public class InlineSuggestionsView extends FrameLayout {
   private int responseCount;
   private SurfaceControl parentSurfaceControl;
 
+  private int suggestionH;
+
   public InlineSuggestionsView(Context context) {
     super(context);
     itemMargin = Math.round(4 * getResources().getDisplayMetrics().density);
@@ -142,6 +144,10 @@ public class InlineSuggestionsView extends FrameLayout {
           .append('x').append(child.getHeight())
           .append('@').append(child.getLeft())
           .append(" o=").append(i < originalWidths.size() ? originalWidths.get(i) : -999);
+      builder.append(" contentY=").append(content != null ? content.getTop() : -1)
+              .append(" contentH=").append(content != null ? content.getHeight() : -1)
+              .append(" scrollH=").append(scrollView.getHeight())
+              .append(" pinH=").append(pinnedView.getHeight());
     }
     return builder.toString();
   }
@@ -152,7 +158,7 @@ public class InlineSuggestionsView extends FrameLayout {
     final Context context = getContext();
     final Size size = new Size(
         ViewGroup.LayoutParams.WRAP_CONTENT,
-        getResources().getDimensionPixelSize(R.dimen.button_frame_height));
+        suggestionH = Math.round(getResources().getDimensionPixelSize(R.dimen.button_frame_height) * 0.8f));
     for (int i = 0; i < suggestions.size(); i++) {
       final int index = i;
       suggestions.get(i).inflate(context, size, context.getMainExecutor(),
@@ -194,7 +200,8 @@ public class InlineSuggestionsView extends FrameLayout {
 
     if (pinned != null) {
       FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(
-          getIntrinsicWidth(pinned), ViewGroup.LayoutParams.MATCH_PARENT);
+          getIntrinsicWidth(pinned), suggestionH);
+      layoutParams.gravity = Gravity.CENTER_VERTICAL;
       layoutParams.setMarginStart(itemMargin);
       layoutParams.setMarginEnd(itemMargin);
       pinnedView.addView(pinned, layoutParams);
@@ -204,6 +211,7 @@ public class InlineSuggestionsView extends FrameLayout {
     content = new LinearLayout(getContext());
     content.setOrientation(LinearLayout.HORIZONTAL);
     content.setGravity(Gravity.CENTER_VERTICAL);
+    content.setVerticalGravity(Gravity.CENTER_VERTICAL);
     for (final InlineContentView view : scrollable) {
       view.setSurfaceControlCallback(new InlineContentView.SurfaceControlCallback() {
         @Override
@@ -216,10 +224,12 @@ public class InlineSuggestionsView extends FrameLayout {
           pendingSurfaces.remove(surfaceControl);
         }
       });
+      view.setForegroundGravity(Gravity.CENTER_VERTICAL);
       int width = getIntrinsicWidth(view);
       originalWidths.add(width);
       LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
-          width, ViewGroup.LayoutParams.MATCH_PARENT);
+          width, suggestionH);
+      layoutParams.gravity = Gravity.CENTER_VERTICAL;
       layoutParams.setMarginStart(itemMargin);
       layoutParams.setMarginEnd(itemMargin);
       content.addView(view, layoutParams);
