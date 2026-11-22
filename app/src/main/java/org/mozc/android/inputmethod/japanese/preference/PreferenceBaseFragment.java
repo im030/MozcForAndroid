@@ -51,10 +51,7 @@ public class PreferenceBaseFragment extends PreferenceFragment {
     String preferencePageName = getPrefrerencePageName(getArguments());
     PreferencePage preferencePage = toPreferencePage(preferencePageName);
     addPreferences(
-        PreferencePage.getResourceIdList(
-            preferencePage,
-            MozcUtil.isDebug(getActivity()),
-            getResources().getBoolean(R.bool.sending_information_features_enabled)));
+        PreferencePage.getResourceIdList(preferencePage, MozcUtil.isDebug(getActivity())));
   }
 
   void addPreferences(List<Integer> resourceIds) {

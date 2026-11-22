@@ -33,9 +33,6 @@
     <!-- Default skin for pre-L -->
     <string name="pref_skin_type_default" translatable="false">BLUE_DARKGRAY</string>
 
-    <!-- Preference url -->
-    <string name="pref_oss_credits_url" translatable="false">file:///android_asset/credits_en.html</string>
-
     <!-- User Dictionary Tool -->
       <!-- List of Japanese POS for user dictionary export feature -->
       <!-- You should keep a consistency with japanese_pos_*. -->

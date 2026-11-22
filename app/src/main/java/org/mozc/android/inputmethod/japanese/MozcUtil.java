@@ -49,10 +49,8 @@ import android.content.res.Resources;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.os.Message;
 import android.os.ParcelFileDescriptor;
-import android.os.StrictMode;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
@@ -70,9 +68,6 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.InvocationTargetException;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.zip.ZipFile;
 
 /**
@@ -731,36 +726,6 @@ public final class MozcUtil {
   }
 
   /**
-   * Simple utility to close {@link Socket} instance.
-   * See {@link MozcUtil#close(Closeable,boolean)} for details.
-   */
-  public static void close(Socket socket, boolean ignoreIOException) throws IOException {
-    Preconditions.checkNotNull(socket);
-    try {
-      socket.close();
-    } catch (IOException e) {
-      if (!ignoreIOException) {
-        throw e;
-      }
-    }
-  }
-
-  /**
-   * Simple utility to close {@link ServerSocket} instance.
-   * See {@link MozcUtil#close(Closeable,boolean)} for details.
-   */
-  public static void close(ServerSocket socket, boolean ignoreIOException) throws IOException {
-    Preconditions.checkNotNull(socket);
-    try {
-      socket.close();
-    } catch (IOException e) {
-      if (!ignoreIOException) {
-        throw e;
-      }
-    }
-  }
-
-  /**
    * Simple utility to close {@link ParcelFileDescriptor} instance.
    * See {@link MozcUtil#close(Closeable,boolean)} for details.
    *
@@ -837,61 +802,6 @@ public final class MozcUtil {
       result &= entry.delete();
     }
     return result;
-  }
-
-  /**
-   * Relaxes ThreadPolicy to enable network access.
-   *
-   * public accessibility for easier invocation via reflection.
-   */
-  public static class StrictModeRelaxer {
-    private StrictModeRelaxer() {}
-    public static void relaxStrictMode() {
-      StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder().permitNetwork().build());
-    }
-  }
-
-  // The restriction is applied since API Level 9.
-  private static boolean isStrictModeRelaxed = Build.VERSION.SDK_INT < 9;
-
-  /**
-   * Relaxes the main thread's restriction.
-   *
-   * On newer Android OS, network access from the main thread is forbidden by default.
-   * This method may relax the restriction.
-   *
-   * Note that this method works only in Debug build because this depends on reflection and
-   * ProGuard will obfuscate the symbol name.
-   * This behavior will not be fixed because this method is used only from Debug utilities
-   * (i.e. SocketSessionHandler).
-   */
-  public static void relaxMainthreadStrictMode() {
-    if (isStrictModeRelaxed) {
-      // Already relaxed.
-      return;
-    }
-    if (!Thread.currentThread().equals(Looper.getMainLooper().getThread())) {
-      // Not on the main thread.
-      return;
-    }
-    try {
-      Class<?> clazz =
-          Class.forName(new StringBuilder(MozcUtil.class.getCanonicalName())
-                                          .append('$')
-                                          .append("StrictModeRelaxer").toString());
-      clazz.getMethod("relaxStrictMode").invoke(null);
-      isStrictModeRelaxed = true;
-    } catch (ClassNotFoundException e) {
-      MozcLog.e(e.getMessage(), e);
-    } catch (NoSuchMethodException e) {
-      MozcLog.e(e.getMessage(), e);
-    } catch (IllegalArgumentException e) {
-      MozcLog.e(e.getMessage(), e);
-    } catch (IllegalAccessException e) {
-      MozcLog.e(e.getMessage(), e);
-    } catch (InvocationTargetException e) {
-      MozcLog.e(e.getMessage(), e);
-    }
   }
 
   /**

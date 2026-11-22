@@ -32,9 +32,6 @@ package org.mozc.android.inputmethod.japanese.session;
 import org.mozc.android.inputmethod.japanese.KeycodeConverter.KeyEventInterface;
 import org.mozc.android.inputmethod.japanese.MozcLog;
 import org.mozc.android.inputmethod.japanese.MozcUtil;
-import org.mozc.android.inputmethod.japanese.R;
-import org.mozc.android.inputmethod.japanese.ViewManagerInterface.LayoutAdjustment;
-import org.mozc.android.inputmethod.japanese.preference.ClientSidePreference;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Capability;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Capability.TextDeletionCapabilityType;
@@ -51,7 +48,6 @@ import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.KeyEvent.Spe
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Output;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Request;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.SessionCommand;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.SessionCommand.UsageStatsEvent;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoConfig.Config;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommand;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommandStatus;
@@ -61,9 +57,6 @@ import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 
 import android.content.Context;
-import android.content.SharedPreferences;
-import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
@@ -719,51 +712,6 @@ public class SessionExecutor {
             .setId(candidateId));
     evaluateAsynchronously(
         inputBuilder, Optional.<KeyEventInterface>absent(), Optional.of(callback));
-
-    if (rowIndex.isPresent()) {
-      candidateSubmissionStatsEvent(rowIndex.get());
-    }
-  }
-
-  private void candidateSubmissionStatsEvent(int rowIndex) {
-    Preconditions.checkArgument(rowIndex >= 0);
-
-    UsageStatsEvent event;
-    switch (rowIndex) {
-      case 0:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_0;
-        break;
-      case 1:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_1;
-        break;
-      case 2:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_2;
-        break;
-      case 3:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_3;
-        break;
-      case 4:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_4;
-        break;
-      case 5:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_5;
-        break;
-      case 6:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_6;
-        break;
-      case 7:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_7;
-        break;
-      case 8:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_8;
-        break;
-      case 9:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_9;
-        break;
-      default:
-        event = UsageStatsEvent.SUBMITTED_CANDIDATE_ROW_GE10;
-    }
-    sendUsageStatsEvent(event);
   }
   /**
    * Sends {@code RESET_CONTEXT} command to the server asynchronously.
@@ -881,68 +829,6 @@ public class SessionExecutor {
             SessionCommand.newBuilder().setType(SessionCommand.CommandType.EXPAND_SUGGESTION));
     evaluateAsynchronously(
         inputBuilder, Optional.<KeyEventInterface>absent(), Optional.of(callback));
-  }
-
-  public void preferenceUsageStatsEvent(SharedPreferences sharedPreferences, Resources resources) {
-    Preconditions.checkNotNull(sharedPreferences);
-    Preconditions.checkNotNull(resources);
-
-    sendIntegerUsageStatsUsageStatsEvent(
-        UsageStatsEvent.SOFTWARE_KEYBOARD_HEIGHT_DIP_LANDSCAPE,
-        (int) Math.ceil(MozcUtil.getDimensionForOrientation(
-            resources, R.dimen.ime_window_height, Configuration.ORIENTATION_LANDSCAPE)));
-    sendIntegerUsageStatsUsageStatsEvent(
-        UsageStatsEvent.SOFTWARE_KEYBOARD_HEIGHT_DIP_PORTRAIT,
-        (int) Math.ceil(MozcUtil.getDimensionForOrientation(
-            resources, R.dimen.ime_window_height, Configuration.ORIENTATION_PORTRAIT)));
-
-    ClientSidePreference landscapePreference = new ClientSidePreference(
-            sharedPreferences, resources, Configuration.ORIENTATION_LANDSCAPE);
-    ClientSidePreference portraitPreference = new ClientSidePreference(
-        sharedPreferences, resources, Configuration.ORIENTATION_PORTRAIT);
-
-    sendIntegerUsageStatsUsageStatsEvent(
-        UsageStatsEvent.SOFTWARE_KEYBOARD_LAYOUT_LANDSCAPE,
-        landscapePreference.getKeyboardLayout().getId());
-    sendIntegerUsageStatsUsageStatsEvent(
-        UsageStatsEvent.SOFTWARE_KEYBOARD_LAYOUT_PORTRAIT,
-        portraitPreference.getKeyboardLayout().getId());
-
-    boolean layoutAdjustmentEnabledInLandscape =
-        landscapePreference.getLayoutAdjustment() != LayoutAdjustment.FILL;
-    boolean layoutAdjustmentEnabledInPortrait =
-        portraitPreference.getLayoutAdjustment() != LayoutAdjustment.FILL;
-
-    sendIntegerUsageStatsUsageStatsEvent(
-        UsageStatsEvent.SOFTWARE_KEYBOARD_LAYOUT_ADJUSTMENT_ENABLED_LANDSCAPE,
-        layoutAdjustmentEnabledInLandscape ? 1 : 0);
-    sendIntegerUsageStatsUsageStatsEvent(
-        UsageStatsEvent.SOFTWARE_KEYBOARD_LAYOUT_ADJUSTMENT_ENABLED_PORTRAIT,
-        layoutAdjustmentEnabledInPortrait ? 1 : 0);
-  }
-
-  private void sendIntegerUsageStatsUsageStatsEvent(UsageStatsEvent event, int value) {
-    evaluateAsynchronously(Input.newBuilder()
-        .setType(CommandType.SEND_COMMAND)
-        .setCommand(SessionCommand.newBuilder()
-            .setType(SessionCommand.CommandType.USAGE_STATS_EVENT)
-            .setUsageStatsEvent(event)
-            .setUsageStatsEventIntValue(value)),
-        Optional.<KeyEventInterface>absent(), Optional.<EvaluationCallback>absent());
-  }
-
-  public void touchEventUsageStatsEvent(List<TouchEvent> touchEventList) {
-    if (Preconditions.checkNotNull(touchEventList).isEmpty()) {
-      return;
-    }
-
-    Input.Builder inputBuilder = Input.newBuilder()
-        .setType(CommandType.SEND_COMMAND)
-        .setCommand(SessionCommand.newBuilder()
-            .setType(SessionCommand.CommandType.USAGE_STATS_EVENT))
-        .addAllTouchEvents(touchEventList);
-    evaluateAsynchronously(
-        inputBuilder, Optional.<KeyEventInterface>absent(), Optional.<EvaluationCallback>absent());
   }
 
   public void syncData() {
@@ -1100,13 +986,4 @@ public class SessionExecutor {
         handler.get().obtainMessage(ExecutorMainCallback.PASS_TO_CALLBACK, context));
   }
 
-  public void sendUsageStatsEvent(UsageStatsEvent event) {
-    evaluateAsynchronously(
-        Input.newBuilder()
-            .setType(CommandType.SEND_COMMAND)
-            .setCommand(SessionCommand.newBuilder()
-                .setType(SessionCommand.CommandType.USAGE_STATS_EVENT)
-                .setUsageStatsEvent(event)),
-        Optional.<KeyEventInterface>absent(), Optional.<EvaluationCallback>absent());
-  }
 }

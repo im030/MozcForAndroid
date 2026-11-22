@@ -34,8 +34,6 @@
           android:versionName="2.23.2815.103-arm64">
 
   <!-- Google Japanese Input (the main code) requires the following permissions. -->
-  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-  <uses-permission android:name="android.permission.INTERNET" />
   <uses-permission android:name="android.permission.VIBRATE" />
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -85,8 +83,6 @@
               android:theme="@style/AppThemeSelectorSettings"/>
 
     <activity android:name="org.mozc.android.inputmethod.japanese.FirstTimeLaunchActivity" />
-    <activity android:name="org.mozc.android.inputmethod.japanese.preference.MiniBrowserActivity"
-              android:launchMode="singleTop" />
 
     <!-- User dictionary tool -->
     <activity android:name="org.mozc.android.inputmethod.japanese.userdictionary.UserDictionaryToolActivity"

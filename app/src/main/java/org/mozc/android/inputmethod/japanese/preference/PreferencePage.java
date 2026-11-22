@@ -49,7 +49,6 @@ enum PreferencePage {
   INPUT_SUPPORT,
   CONVERSION,
   DICTIONARY,
-  USER_FEEDBACK,
   ABOUT,
 
   // For debug build.
@@ -62,20 +61,14 @@ enum PreferencePage {
    * Returns resouce id list which corresponds to given {@link PreferencePage}.
    * @param page a page for resource ids
    * @param isDebug true if this is debug mode. Effective only when {@code page} is FLAT.
-   * @param useUsageStats true if usage stats / user feedback page should be shown.
-   *                      Effective only when {@code page} is FLAT.
    * @return resource id list
    */
-  public static List<Integer> getResourceIdList(
-      PreferencePage page, boolean isDebug, boolean useUsageStats) {
+  public static List<Integer> getResourceIdList(PreferencePage page, boolean isDebug) {
     switch (page) {
       case FLAT:
         List<Integer> result = new ArrayList<Integer>(Arrays.asList(
             R.xml.pref_software_keyboard, R.xml.pref_input_support, R.xml.pref_conversion,
             R.xml.pref_dictionary));
-        if (useUsageStats) {
-          result.add(R.xml.pref_user_feedback);
-        }
         result.add(R.xml.pref_about);
         if (isDebug) {
           result.add(R.xml.pref_development);
@@ -89,8 +82,6 @@ enum PreferencePage {
         return Collections.singletonList(R.xml.pref_conversion);
       case DICTIONARY:
         return Collections.singletonList(R.xml.pref_dictionary);
-      case USER_FEEDBACK:
-        return Collections.singletonList(R.xml.pref_user_feedback);
       case ABOUT:
         return Collections.singletonList(R.xml.pref_about);
       case DEVELOPMENT:

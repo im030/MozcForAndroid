@@ -190,7 +190,6 @@ public class PreferenceUtil {
   public static final String PREF_DICTIONARY_USER_DICTIONARY_TOOL_KEY =
       "pref_dictionary_user_dictionary_tool_key";
   public static final String PREF_OTHER_INCOGNITO_MODE_KEY = "pref_other_anonimous_mode_key";
-  public static final String PREF_OTHER_USAGE_STATS_KEY = "pref_other_usage_stats_key";
   public static final String PREF_ABOUT_VERSION = "pref_about_version";
   public static final String PREF_LAUNCHER_ICON_VISIBILITY_KEY = "pref_launcher_icon_visibility";
   public static final String PREF_DEBUG = "pref_debug";
@@ -231,7 +230,6 @@ public class PreferenceUtil {
   static void initializeSpecialPreferencesInternal(PreferenceManagerInterface preferenceManager) {
     initializeCurrentKeyboardLayoutPreference(
         preferenceManager.findPreference(PREF_CURRENT_KEYBOARD_LAYOUT_KEY));
-    initializeUsageStatsPreference(preferenceManager.findPreference(PREF_OTHER_USAGE_STATS_KEY));
     initializeVersionPreference(preferenceManager.findPreference(PREF_ABOUT_VERSION));
     initializeLayoutAdjustmentPreference(preferenceManager);
 
@@ -274,20 +272,6 @@ public class PreferenceUtil {
     }
 
     return KeyboardLayout.TWELVE_KEYS;
-  }
-
-  private static void initializeUsageStatsPreference(Preference preference) {
-    if (preference == null) {
-      return;
-    }
-
-    Context context = preference.getContext();
-    Resources resources = context.getResources();
-    preference.setSummary(
-        resources.getString(R.string.pref_other_usage_stats_description,
-                            resources.getString(R.string.developer_organization)));
-    // Disable (always on to send usage stats) for dev-channel build.
-    preference.setEnabled(!MozcUtil.isDevChannel(context));
   }
 
   private static void initializeVersionPreference(Preference preference) {
@@ -380,14 +364,14 @@ public class PreferenceUtil {
   }
 
   public static void setDefaultValues(PreferenceManagerStaticInterface preferenceManager,
-                                      Context context, boolean isDebug, boolean useUsageStats) {
+                                      Context context, boolean isDebug) {
     Preconditions.checkNotNull(preferenceManager);
     Preconditions.checkNotNull(context);
     Set<Integer> preferenceResources = new HashSet<Integer>();
     // Collect all the preferences resource ids from possible preference pages,
     // removing duplication.
     for (PreferencePage page : PreferencePage.values()) {
-      for (int id : PreferencePage.getResourceIdList(page, isDebug, useUsageStats)) {
+      for (int id : PreferencePage.getResourceIdList(page, isDebug)) {
         preferenceResources.add(id);
       }
     }

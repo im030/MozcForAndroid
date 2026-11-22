@@ -236,12 +236,9 @@ public class ApplicationInitializerFactory {
         //       updateLauncherIconVisibility(), the launcher icon will be unexpectedly shown
         //       when 2.16.1955.3 (preinstall version) is overwritten by PlayStore version.
         PreferenceUtil.setDefaultValues(
-            preferenceManager, context, MozcUtil.isDebug(context),
-            resources.getBoolean(R.bool.sending_information_features_enabled));
+            preferenceManager, context, MozcUtil.isDebug(context));
 
         if (isDevChannel) {
-          // Usage Stats: Make pref_other_usage_stats_key enabled when dev channel.
-          editor.putBoolean(PreferenceUtil.PREF_OTHER_USAGE_STATS_KEY, true);
           maybeShowNotificationForDevChannel(abiIndependentVersionCode,
               lastVersionCode);
         }

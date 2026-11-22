@@ -93,11 +93,7 @@ public abstract class MozcFragmentBasePreferenceActivity extends MozcBasePrefere
       // because the view will be switched to the contents directly by above hack.
       return;
     }
-    loadHeadersFromResource(
-        getResources().getBoolean(R.bool.sending_information_features_enabled)
-            ? R.xml.preference_headers_multipane
-            : R.xml.preference_headers_multipane_without_stats,
-        target);
+    loadHeadersFromResource(R.xml.preference_headers_multipane_without_stats, target);
     if (MozcUtil.isDebug(this)) {
       // For debug build, we load additional header.
       loadHeadersFromResource(R.xml.preference_headers_multipane_development, target);

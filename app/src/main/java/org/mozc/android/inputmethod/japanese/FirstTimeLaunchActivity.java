@@ -29,25 +29,14 @@
 
 package org.mozc.android.inputmethod.japanese;
 
-import org.mozc.android.inputmethod.japanese.preference.PreferenceUtil;
 import org.mozc.android.inputmethod.japanese.R;
 
 import android.app.Activity;
-import android.content.SharedPreferences;
-import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.content.res.Resources;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.method.LinkMovementMethod;
-import android.text.style.URLSpan;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.Window;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
-import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.TextView;
 
 /**
@@ -55,50 +44,14 @@ import android.widget.TextView;
  *
  */
 public class FirstTimeLaunchActivity extends Activity {
-  /**
-   * A listener to catch the change of the check box.
-   */
-  static class SendUsageStatsChangeListener implements OnCheckedChangeListener {
-    private final SharedPreferences sharedPreferences;
-
-    SendUsageStatsChangeListener(SharedPreferences sharedPreferences) {
-      this.sharedPreferences = sharedPreferences;
-    }
-
-    @Override
-    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-      sharedPreferences.edit()
-          .putBoolean(PreferenceUtil.PREF_OTHER_USAGE_STATS_KEY, isChecked)
-          .commit();
-    }
-  }
-
-  /**
-   * A listener to catch the change of the SharedPreferences.
-   */
-  class UpdateViewListener implements OnSharedPreferenceChangeListener {
-    @Override
-    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-      updateView(sharedPreferences);
-    }
-  }
-
-  private SharedPreferences sharedPreferences;
-
-  // We have to keep the instance in order to unregister this.
-  OnSharedPreferenceChangeListener updateViewListener = new UpdateViewListener();
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     requestWindowFeature(Window.FEATURE_NO_TITLE);
-    sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-    initializeContentView(getResources().getBoolean(R.bool.sending_information_features_enabled),
-                          sharedPreferences);
+    initializeContentView();
   }
 
-  void initializeContentView(boolean sendingInformationFeaturesEnabled,
-                             SharedPreferences sharedPreferences) {
+  void initializeContentView() {
     setContentView(R.layout.first_time_launch);
 
     // Fill strings, which needs replacement.
@@ -106,67 +59,11 @@ public class FirstTimeLaunchActivity extends Activity {
     TextView thankYouTextView = TextView.class.cast(findViewById(R.id.description_thank_you));
     thankYouTextView.setText(resources.getString(R.string.firsttime_description_thank_you,
                                                  resources.getString(R.string.app_full_name)));
-    if (sendingInformationFeaturesEnabled) {
-      findViewById(R.id.usage_stats_views).setVisibility(View.VISIBLE);
-      TextView usageStatsTextView = TextView.class.cast(findViewById(R.id.description_usage_stats));
-      usageStatsTextView.setText(resources.getString(R.string.firsttime_description_usage_stats,
-                                                     resources.getString(
-                                                         R.string.developer_organization)));
-
-      CheckBox usageStatsCheckBox = CheckBox.class.cast(findViewById(R.id.send_usage_stats));
-      usageStatsCheckBox.setOnCheckedChangeListener(
-          new SendUsageStatsChangeListener(sharedPreferences));
-      if (MozcUtil.isDevChannel(this)) {
-        usageStatsCheckBox.setEnabled(false);
-        findViewById(R.id.send_usage_stats_devchannel_description).setVisibility(View.VISIBLE);
-      }
-    } else {
-      findViewById(R.id.usage_stats_views).setVisibility(View.GONE);
-    }
     findViewById(R.id.close_button).setOnClickListener(new OnClickListener() {
       @Override
       public void onClick(View v) {
         finish();  // Close this activity.
       }
     });
-    initializeAnchorTextView(
-        R.id.link_terms_of_service,
-        R.string.pref_about_terms_of_service_url,
-        R.string.pref_about_terms_of_service_title);
-    initializeAnchorTextView(
-        R.id.link_privacy_policy,
-        R.string.pref_about_privacy_policy_url,
-        R.string.pref_about_privacy_policy_title);
-  }
-
-  private void initializeAnchorTextView(int textViewId, int urlId, int descriptionId) {
-    Resources resources = getResources();
-    TextView textView = TextView.class.cast(findViewById(textViewId));
-    SpannableString spannable = new SpannableString(resources.getString(descriptionId));
-    spannable.setSpan(
-        new URLSpan(resources.getString(urlId)),
-        0, spannable.length(),
-        Spanned.SPAN_INCLUSIVE_INCLUSIVE);
-    textView.setText(spannable);
-    // Make the URLSpan clickable.
-    textView.setMovementMethod(LinkMovementMethod.getInstance());
-  }
-
-  @Override
-  protected void onResume() {
-    super.onResume();
-    updateView(sharedPreferences);
-    sharedPreferences.registerOnSharedPreferenceChangeListener(updateViewListener);
-  }
-
-  @Override
-  protected void onPause() {
-    sharedPreferences.unregisterOnSharedPreferenceChangeListener(updateViewListener);
-    super.onPause();
-  }
-
-  private void updateView(SharedPreferences sharedPreferences) {
-    CheckBox.class.cast(findViewById(R.id.send_usage_stats)).setChecked(
-        sharedPreferences.getBoolean(PreferenceUtil.PREF_OTHER_USAGE_STATS_KEY, false));
   }
 }

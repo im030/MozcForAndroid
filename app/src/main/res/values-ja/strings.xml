@@ -83,13 +83,8 @@
             <string name="pref_clear_conversion_history_title">変換履歴</string>
             <string name="pref_clear_symbol_history_title">記号入力</string>
             <string name="pref_clear_user_dictionary_title">ユーザ辞書</string>
-    <string name="pref_user_feedback_category_title">ユーザフィードバック</string>
-      <string name="pref_other_usage_stats_title">利用統計を送信</string>
     <string name="pref_about_about_this_software_title">このアプリケーションについて</string>
         <string name="pref_about_version_title">バージョン</string>
-        <string name="pref_about_terms_of_service_title">モバイル利用規約</string>
-        <string name="pref_about_privacy_policy_title">プライバシーポリシー</string>
-        <string name="pref_about_oss_credits_title">オープンソースソフトウェア</string>
         <string name="pref_launcher_icon_visibility_title">アイコンを表示する</string>
 
     <!-- Preference description -->
@@ -110,7 +105,7 @@
             <string name="pref_keyboard_layout_title_fifty_keys">50音配列</string>
             <string name="pref_keyboard_layout_description_12keys">携帯電話のキーボードのようなレイアウトです。</string>
             <string name="pref_keyboard_layout_description_qwerty">パソコンのキーボードのようなレイアウトです。</string>
-            <string name="pref_keyboard_layout_description_godan">ローマ字入力に特化したレイアウトです。 <![CDATA[<a href=\'http://support.google.com/ime/japanese/bin/answer.py?hl=ja&topic=25606&answer=2700298\'>使い方</a>]]></string>
+            <string name="pref_keyboard_layout_description_godan">ローマ字入力に特化したレイアウトです。</string>
             <string name="pref_keyboard_layout_description_jis_kana">JISキーボード風かな入力用レイアウトです。</string>
             <string name="pref_keyboard_layout_description_jis_romaji">JISキーボード風ローマ字入力用レイアウトです。</string>
             <string name="pref_keyboard_layout_description_stroke">ストローク入力のレイアウトです。</string>
@@ -140,11 +135,7 @@
             <string name="pref_clear_user_dictionary_description">ユーザ辞書をクリアします。</string>
     <!-- Other -->
         <string name="pref_other_incognito_mode_description">一時的に学習機能、入力からのサジェスト機能、ユーザー辞書機能を無効にします。</string>
-        <string name="pref_other_usage_stats_description">%1$sのサーバーに利用統計を送ります。送られた利用統計はソフトウェアの改善に利用されます。通信が発生します。</string>
     <!-- About -->
-        <string name="pref_about_terms_of_service_description">モバイル利用規約を表示します(ウェブページ)。</string>
-        <string name="pref_about_privacy_policy_description">プライバシーポリシーを表示します(ウェブページ)。</string>
-        <string name="pref_about_oss_credits_description">本ソフトウェアはオープンソースソフトウェアを利用しています。</string>
         <string name="pref_launcher_icon_visibility_description">アプリケーション一覧にアイコンを表示します。</string>
 
     <!-- Preference Values -->
@@ -178,8 +169,6 @@
     <!-- First time launch activity -->
     <string name="firsttime_close_button">次へ</string>
     <string name="firsttime_description_thank_you">%sをご利用いただき、ありがとうございます。</string>
-    <string name="firsttime_description_usage_stats"><![CDATA[本ソフトはご利用者の許諾を得た場合に限り、ソフトウェアがどのように利用されているかについての統計情報を%sに送信します。\n利用統計の送信にご同意いただける場合は、チェックボックスをオンにしてください。\nよりよい日本語入力を実現するため、ご協力をよろしくお願いいたします。\n\nこの設定は設定画面にて後から変更することができます。]]></string>
-    <string name="firsttime_send_usage_stats_devchannel">開発版のため、常に利用統計が送信されます。</string>
 
     <!-- Alert messages -->
     <string name="pref_ime_enable_alert_title">インストール後の設定</string>
