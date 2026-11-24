@@ -82,6 +82,11 @@
               android:launchMode="singleTop"
               android:theme="@style/AppThemeSelectorSettings"/>
 
+    <activity android:name="org.mozc.android.inputmethod.japanese.custombackground.CustomBackgroundBuilderActivity"
+              android:exported="false"
+              android:label="@string/custom_background_title"
+              android:theme="@style/AppThemeSelectorSettings" />
+
     <activity android:name="org.mozc.android.inputmethod.japanese.FirstTimeLaunchActivity" />
 
     <!-- User dictionary tool -->

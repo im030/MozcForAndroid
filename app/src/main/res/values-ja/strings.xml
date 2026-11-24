@@ -320,4 +320,22 @@
       <string name="clipboard_copy_empty">コピーするテキストを選択してください</string>
       <string name="clipboard_cut_done">クリップボード履歴に切り取りました</string>
       <string name="clipboard_cut_empty">切り取るテキストを選択してください</string>
+
+      <!-- Custom keyboard background -->
+      <string name="pref_keyboard_background_category_title">キーボード背景</string>
+      <string name="custom_background_title">キーボード背景</string>
+      <string name="custom_background_summary_enabled">カスタム背景が有効です</string>
+      <string name="custom_background_summary_disabled">キーボードの背景に使う画像を選択します</string>
+      <string name="custom_background_empty_text">キーボードの背景に使う画像を選択してください。</string>
+      <string name="custom_background_choose_image">画像を選択</string>
+      <string name="custom_background_change_image">画像を変更</string>
+      <string name="custom_background_next">次へ</string>
+      <string name="custom_background_back">戻る</string>
+      <string name="custom_background_save">保存</string>
+      <string name="custom_background_remove">削除</string>
+      <string name="custom_background_cancel">キャンセル</string>
+      <string name="custom_background_brightness">明るさ</string>
+      <string name="custom_background_error_load">選択した画像を読み込めませんでした。</string>
+      <string name="custom_background_error_save">背景を保存できませんでした。</string>
+      <string name="custom_background_remove_message">カスタムキーボード背景を削除しますか？</string>
 </resources>

@@ -89,6 +89,12 @@
         android:summary="@string/pref_skin_type_description"
         android:title="@string/pref_skin_type_title" />
 
+    <org.mozc.android.inputmethod.japanese.custombackground.CustomBackgroundPreference
+        android:key="pref_custom_background"
+        android:persistent="false"
+        android:summary="@string/custom_background_summary_disabled"
+        android:title="@string/custom_background_title" />
+
     <ListPreference
         android:defaultValue="DEFAULT"
         android:entries="@array/pref_hardware_keymap_entries"

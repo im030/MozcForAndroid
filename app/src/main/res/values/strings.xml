@@ -330,4 +330,22 @@
       <string name="clipboard_copy_empty">Select text to copy</string>
       <string name="clipboard_cut_done">Cut to clipboard history</string>
       <string name="clipboard_cut_empty">Select text to cut</string>
+
+      <!-- Custom keyboard background -->
+      <string name="pref_keyboard_background_category_title">Keyboard background</string>
+      <string name="custom_background_title">Custom keyboard background</string>
+      <string name="custom_background_summary_enabled">Custom background is on</string>
+      <string name="custom_background_summary_disabled">Choose an image to use behind the keyboard</string>
+      <string name="custom_background_empty_text">Choose an image to use as the keyboard background.</string>
+      <string name="custom_background_choose_image">Choose image</string>
+      <string name="custom_background_change_image">Change image</string>
+      <string name="custom_background_next">Next</string>
+      <string name="custom_background_back">Back</string>
+      <string name="custom_background_save">Save</string>
+      <string name="custom_background_remove">Remove</string>
+      <string name="custom_background_cancel">Cancel</string>
+      <string name="custom_background_brightness">Brightness</string>
+      <string name="custom_background_error_load">Could not load the selected image.</string>
+      <string name="custom_background_error_save">Could not save the background.</string>
+      <string name="custom_background_remove_message">Remove the custom keyboard background?</string>
 </resources>

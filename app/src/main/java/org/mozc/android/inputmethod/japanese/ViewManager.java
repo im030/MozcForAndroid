@@ -31,6 +31,7 @@ package org.mozc.android.inputmethod.japanese;
 
 import org.mozc.android.inputmethod.japanese.FeedbackManager.FeedbackEvent;
 import org.mozc.android.inputmethod.japanese.KeycodeConverter.KeyEventInterface;
+import org.mozc.android.inputmethod.japanese.custombackground.CustomBackgroundManager;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiProviderType;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiUtil;
 import org.mozc.android.inputmethod.japanese.hardwarekeyboard.HardwareKeyboard;
@@ -540,6 +541,7 @@ public class ViewManager implements ViewManagerInterface {
     mozcView.setPopupEnabled(popupEnabled);
     mozcView.setFlickSensitivity(flickSensitivity);
     mozcView.setSkin(skin);
+    refreshCustomBackground();
 
     // Clear the menu dialog.
     menuDialog = null;
@@ -956,6 +958,13 @@ public class ViewManager implements ViewManagerInterface {
     this.skin = Preconditions.checkNotNull(skin);
     if (mozcView != null) {
       mozcView.setSkin(skin);
+    }
+  }
+
+  @Override
+  public void refreshCustomBackground() {
+    if (mozcView != null) {
+      mozcView.setCustomBackground(CustomBackgroundManager.loadDrawable(mozcView.getContext()));
     }
   }
 

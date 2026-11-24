@@ -33,6 +33,7 @@ import org.mozc.android.inputmethod.japanese.FeedbackManager.FeedbackEvent;
 import org.mozc.android.inputmethod.japanese.FeedbackManager.FeedbackListener;
 import org.mozc.android.inputmethod.japanese.KeycodeConverter.KeyEventInterface;
 import org.mozc.android.inputmethod.japanese.clipboard.ClipboardHistoryManager;
+import org.mozc.android.inputmethod.japanese.custombackground.CustomBackgroundManager;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiProviderType;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiUtil;
 import org.mozc.android.inputmethod.japanese.english.EnglishDictionary;
@@ -2173,6 +2174,12 @@ public class MozcBaseService extends InputMethodService {
         // If the key belongs to PREF_TWEAK group, re-create SessionHandler and view.
         prepareEveryTime(sharedPreferences, getConfiguration());
         setInputView(onCreateInputView());
+        return;
+      }
+      if (CustomBackgroundManager.isCustomBackgroundPreference(key)) {
+        if (viewManager != null) {
+          viewManager.refreshCustomBackground();
+        }
         return;
       }
       propagateClientSidePreference(

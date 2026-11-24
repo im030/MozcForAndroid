@@ -187,6 +187,8 @@ public interface ViewManagerInterface extends MemoryManageable {
 
   public void setSkin(Skin skin);
 
+  public void refreshCustomBackground();
+
   public void setMicrophoneButtonEnabledByPreference(boolean microphoneButtonEnabled);
 
   public void setLayoutAdjustment(LayoutAdjustment layoutAdjustment);

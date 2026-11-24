@@ -40,6 +40,7 @@ import org.mozc.android.inputmethod.japanese.ViewManagerInterface.LayoutAdjustme
 import org.mozc.android.inputmethod.japanese.clipboard.ClipboardEntry;
 import org.mozc.android.inputmethod.japanese.clipboard.ClipboardHistoryManager;
 import org.mozc.android.inputmethod.japanese.clipboard.ClipboardView;
+import org.mozc.android.inputmethod.japanese.custombackground.CustomBackgroundManager;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiProviderType;
 import org.mozc.android.inputmethod.japanese.keyboard.BackgroundDrawableFactory;
 import org.mozc.android.inputmethod.japanese.keyboard.KeyEventHandler;
@@ -272,6 +273,8 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     }
   };
   private Skin skin = Skin.getFallbackInstance();
+  private Skin baseSkin = Skin.getFallbackInstance();
+  private Optional<Drawable> customBackground = Optional.absent();
   @VisibleForTesting LayoutAdjustment layoutAdjustment = LayoutAdjustment.FILL;
   private int inputFrameHeight = 0;
   @VisibleForTesting int imeWindowHeight = 0;
@@ -547,7 +550,43 @@ public class MozcView extends FrameLayout implements MemoryManageable {
   public void setSkin(Skin skin) {
     Preconditions.checkNotNull(skin);
     checkInflated();
-    this.skin = skin;
+    baseSkin = skin;
+    applyEffectiveSkin();
+  }
+
+  public void setCustomBackground(Optional<Drawable> customBackground) {
+    Preconditions.checkNotNull(customBackground);
+    checkInflated();
+    this.customBackground = customBackground;
+    View backgroundView = getCustomBackgroundView();
+    if (customBackground.isPresent()) {
+      backgroundView.setBackground(customBackground.get());
+      backgroundView.setVisibility(View.VISIBLE);
+      // Match the custom background to the visible keyboard area instead of the taller
+      // bottom frame (which may leave a strip of image above the suggestion row).
+      ViewGroup.LayoutParams layoutParams = backgroundView.getLayoutParams();
+      layoutParams.height = getBottomBackground().getLayoutParams().height;
+      backgroundView.setLayoutParams(layoutParams);
+    } else {
+      backgroundView.setBackground(null);
+      backgroundView.setVisibility(View.GONE);
+    }
+    applyEffectiveSkin();
+    updateBackgroundColor();
+  }
+
+  private void applyEffectiveSkin() {
+    Skin effectiveSkin = customBackground.isPresent()
+        ? baseSkin.createTranslucentCopy(
+            CustomBackgroundManager.KEY_BACKGROUND_ALPHA,
+            CustomBackgroundManager.PANEL_BACKGROUND_ALPHA)
+        : baseSkin;
+    skin = effectiveSkin;
+    applySkin(effectiveSkin);
+  }
+
+  @SuppressWarnings("deprecation")
+  private void applySkin(Skin skin) {
     getKeyboardView().setSkin(skin);
     getSymbolInputView().setSkin(skin);
     candidateViewManager.setSkin(skin);
@@ -1100,6 +1139,10 @@ public class MozcView extends FrameLayout implements MemoryManageable {
 
   @VisibleForTesting
   void updateBackgroundColor() {
+    if (customBackground.isPresent()) {
+      getBottomBackground().setBackgroundResource(0);
+      return;
+    }
     // If fullscreenMode, background should not show original window.
     // If narrowMode, it is always full-width.
     // If isFloatingMode, background should be transparent.
@@ -1138,16 +1181,24 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     return;
   }
 
+  private void setBackgroundViewsHeight(int height) {
+    setLayoutHeight(getBottomBackground(), height);
+    View customBackgroundView = getCustomBackgroundView();
+    if (customBackgroundView != null) {
+      setLayoutHeight(customBackgroundView, height);
+    }
+  }
+
   @VisibleForTesting
   void changeBottomBackgroundHeight(int targetHeight) {
     if (getBottomBackground().getHeight() != targetHeight) {
-      setLayoutHeight(getBottomBackground(), targetHeight);
+      setBackgroundViewsHeight(targetHeight);
     }
   }
 
   @VisibleForTesting
   void resetBottomBackgroundHeight() {
-    setLayoutHeight(getBottomBackground(), getInputFrameHeight() + getButtonFrameHeightIfVisible());
+    setBackgroundViewsHeight(getInputFrameHeight() + getButtonFrameHeightIfVisible());
   }
 
   @VisibleForTesting
@@ -1294,6 +1345,10 @@ public class MozcView extends FrameLayout implements MemoryManageable {
   @VisibleForTesting
   View getBottomBackground() {
     return findViewById(R.id.bottom_background);
+  }
+
+  private View getCustomBackgroundView() {
+    return findViewById(R.id.custom_background_view);
   }
 
   @VisibleForTesting

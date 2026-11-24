@@ -37,7 +37,13 @@ import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Paint.Style;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -46,6 +52,8 @@ import android.graphics.drawable.Drawable;
 public class Skin {
 
   private static final Skin FALLBACK_INSTANCE = new Skin();
+
+  private static final Field[] COPY_FIELDS = collectCopyFields();
 
   @VisibleForTesting static final int STYLE_CATEGORY_KEYICON_MAIN = 0;
   @VisibleForTesting static final int STYLE_CATEGORY_KEYICON_GUIDE = 1;
@@ -233,6 +241,260 @@ public class Skin {
   public Drawable scrollBarBackgroundDrawable = DummyDrawable.getInstance();
 
   private Optional<MozcDrawableFactory> drawableFactory = Optional.absent();
+
+  public Skin() {
+  }
+
+  public Skin(Skin other) {
+    Preconditions.checkNotNull(other);
+    for (Field field : COPY_FIELDS) {
+      try {
+        field.set(this, field.get(other));
+      } catch (IllegalAccessException e) {
+        throw new IllegalStateException(e);
+      }
+    }
+  }
+
+  private static Field[] collectCopyFields() {
+    List<Field> fields = new ArrayList<Field>();
+    for (Field field : Skin.class.getFields()) {
+      if (!Modifier.isStatic(field.getModifiers())) {
+        fields.add(field);
+      }
+    }
+    return fields.toArray(new Field[fields.size()]);
+  }
+
+  /**
+   * Returns a copy whose keyboard and panel backgrounds are translucent so that a custom
+   * background image can be seen through them.
+   */
+  public Skin createTranslucentCopy(float keyBackgroundAlpha, float panelBackgroundAlpha) {
+    Skin result = new Skin(this);
+
+    result.keyboardSeparatorColor = applyAlpha(this.keyboardSeparatorColor, keyBackgroundAlpha);
+
+    result.twelvekeysLayoutReleasedKeyTopColor =
+        applyAlpha(this.twelvekeysLayoutReleasedKeyTopColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutReleasedKeyBottomColor =
+        applyAlpha(this.twelvekeysLayoutReleasedKeyBottomColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutReleasedKeyHighlightColor =
+        applyAlpha(this.twelvekeysLayoutReleasedKeyHighlightColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutReleasedKeyLightShadeColor =
+        applyAlpha(this.twelvekeysLayoutReleasedKeyLightShadeColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutReleasedKeyDarkShadeColor =
+        applyAlpha(this.twelvekeysLayoutReleasedKeyDarkShadeColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutReleasedKeyShadowColor =
+        applyAlpha(this.twelvekeysLayoutReleasedKeyShadowColor, keyBackgroundAlpha);
+
+    result.twelvekeysLayoutPressedKeyTopColor =
+        applyAlpha(this.twelvekeysLayoutPressedKeyTopColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutPressedKeyBottomColor =
+        applyAlpha(this.twelvekeysLayoutPressedKeyBottomColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutPressedKeyHighlightColor =
+        applyAlpha(this.twelvekeysLayoutPressedKeyHighlightColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutPressedKeyLightShadeColor =
+        applyAlpha(this.twelvekeysLayoutPressedKeyLightShadeColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutPressedKeyDarkShadeColor =
+        applyAlpha(this.twelvekeysLayoutPressedKeyDarkShadeColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutPressedKeyShadowColor =
+        applyAlpha(this.twelvekeysLayoutPressedKeyShadowColor, keyBackgroundAlpha);
+
+    result.twelvekeysLayoutReleasedFunctionKeyTopColor =
+        applyAlpha(this.twelvekeysLayoutReleasedFunctionKeyTopColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutReleasedFunctionKeyBottomColor =
+        applyAlpha(this.twelvekeysLayoutReleasedFunctionKeyBottomColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutReleasedFunctionKeyHighlightColor =
+        applyAlpha(this.twelvekeysLayoutReleasedFunctionKeyHighlightColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutReleasedFunctionKeyLightShadeColor =
+        applyAlpha(this.twelvekeysLayoutReleasedFunctionKeyLightShadeColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutReleasedFunctionKeyDarkShadeColor =
+        applyAlpha(this.twelvekeysLayoutReleasedFunctionKeyDarkShadeColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutReleasedFunctionKeyShadowColor =
+        applyAlpha(this.twelvekeysLayoutReleasedFunctionKeyShadowColor, keyBackgroundAlpha);
+
+    result.twelvekeysLayoutPressedFunctionKeyTopColor =
+        applyAlpha(this.twelvekeysLayoutPressedFunctionKeyTopColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutPressedFunctionKeyBottomColor =
+        applyAlpha(this.twelvekeysLayoutPressedFunctionKeyBottomColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutPressedFunctionKeyHighlightColor =
+        applyAlpha(this.twelvekeysLayoutPressedFunctionKeyHighlightColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutPressedFunctionKeyLightShadeColor =
+        applyAlpha(this.twelvekeysLayoutPressedFunctionKeyLightShadeColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutPressedFunctionKeyDarkShadeColor =
+        applyAlpha(this.twelvekeysLayoutPressedFunctionKeyDarkShadeColor, keyBackgroundAlpha);
+    result.twelvekeysLayoutPressedFunctionKeyShadowColor =
+        applyAlpha(this.twelvekeysLayoutPressedFunctionKeyShadowColor, keyBackgroundAlpha);
+
+    result.qwertyLayoutReleasedKeyTopColor =
+        applyAlpha(this.qwertyLayoutReleasedKeyTopColor, keyBackgroundAlpha);
+    result.qwertyLayoutReleasedKeyBottomColor =
+        applyAlpha(this.qwertyLayoutReleasedKeyBottomColor, keyBackgroundAlpha);
+    result.qwertyLayoutReleasedKeyHighlightColor =
+        applyAlpha(this.qwertyLayoutReleasedKeyHighlightColor, keyBackgroundAlpha);
+    result.qwertyLayoutReleasedKeyShadowColor =
+        applyAlpha(this.qwertyLayoutReleasedKeyShadowColor, keyBackgroundAlpha);
+
+    result.qwertyLayoutPressedKeyTopColor =
+        applyAlpha(this.qwertyLayoutPressedKeyTopColor, keyBackgroundAlpha);
+    result.qwertyLayoutPressedKeyBottomColor =
+        applyAlpha(this.qwertyLayoutPressedKeyBottomColor, keyBackgroundAlpha);
+    result.qwertyLayoutPressedKeyHighlightColor =
+        applyAlpha(this.qwertyLayoutPressedKeyHighlightColor, keyBackgroundAlpha);
+    result.qwertyLayoutPressedKeyShadowColor =
+        applyAlpha(this.qwertyLayoutPressedKeyShadowColor, keyBackgroundAlpha);
+
+    result.qwertyLayoutReleasedFunctionKeyTopColor =
+        applyAlpha(this.qwertyLayoutReleasedFunctionKeyTopColor, keyBackgroundAlpha);
+    result.qwertyLayoutReleasedFunctionKeyBottomColor =
+        applyAlpha(this.qwertyLayoutReleasedFunctionKeyBottomColor, keyBackgroundAlpha);
+    result.qwertyLayoutReleasedFunctionKeyHighlightColor =
+        applyAlpha(this.qwertyLayoutReleasedFunctionKeyHighlightColor, keyBackgroundAlpha);
+    result.qwertyLayoutReleasedFunctionKeyShadowColor =
+        applyAlpha(this.qwertyLayoutReleasedFunctionKeyShadowColor, keyBackgroundAlpha);
+
+    result.qwertyLayoutPressedFunctionKeyTopColor =
+        applyAlpha(this.qwertyLayoutPressedFunctionKeyTopColor, keyBackgroundAlpha);
+    result.qwertyLayoutPressedFunctionKeyBottomColor =
+        applyAlpha(this.qwertyLayoutPressedFunctionKeyBottomColor, keyBackgroundAlpha);
+    result.qwertyLayoutPressedFunctionKeyHighlightColor =
+        applyAlpha(this.qwertyLayoutPressedFunctionKeyHighlightColor, keyBackgroundAlpha);
+    result.qwertyLayoutPressedFunctionKeyShadowColor =
+        applyAlpha(this.qwertyLayoutPressedFunctionKeyShadowColor, keyBackgroundAlpha);
+
+    result.qwertyLayoutReleasedSpaceKeyTopColor =
+        applyAlpha(this.qwertyLayoutReleasedSpaceKeyTopColor, keyBackgroundAlpha);
+    result.qwertyLayoutReleasedSpaceKeyBottomColor =
+        applyAlpha(this.qwertyLayoutReleasedSpaceKeyBottomColor, keyBackgroundAlpha);
+    result.qwertyLayoutReleasedSpaceKeyHighlightColor =
+        applyAlpha(this.qwertyLayoutReleasedSpaceKeyHighlightColor, keyBackgroundAlpha);
+    result.qwertyLayoutReleasedSpaceKeyShadowColor =
+        applyAlpha(this.qwertyLayoutReleasedSpaceKeyShadowColor, keyBackgroundAlpha);
+
+    result.qwertyLayoutPressedSpaceKeyTopColor =
+        applyAlpha(this.qwertyLayoutPressedSpaceKeyTopColor, keyBackgroundAlpha);
+    result.qwertyLayoutPressedSpaceKeyBottomColor =
+        applyAlpha(this.qwertyLayoutPressedSpaceKeyBottomColor, keyBackgroundAlpha);
+    result.qwertyLayoutPressedSpaceKeyHighlightColor =
+        applyAlpha(this.qwertyLayoutPressedSpaceKeyHighlightColor, keyBackgroundAlpha);
+    result.qwertyLayoutPressedSpaceKeyShadowColor =
+        applyAlpha(this.qwertyLayoutPressedSpaceKeyShadowColor, keyBackgroundAlpha);
+
+    result.flickBaseColor = applyAlpha(this.flickBaseColor, keyBackgroundAlpha);
+    result.flickShadeColor = applyAlpha(this.flickShadeColor, keyBackgroundAlpha);
+    result.keyboardFoldingButtonBackgroundDefaultColor =
+        applyAlpha(this.keyboardFoldingButtonBackgroundDefaultColor, keyBackgroundAlpha);
+    result.keyboardFoldingButtonBackgroundScrolledColor =
+        applyAlpha(this.keyboardFoldingButtonBackgroundScrolledColor, keyBackgroundAlpha);
+
+    result.candidateScrollBarTopColor =
+        applyAlpha(this.candidateScrollBarTopColor, panelBackgroundAlpha);
+    result.candidateScrollBarBottomColor =
+        applyAlpha(this.candidateScrollBarBottomColor, panelBackgroundAlpha);
+    result.candidateBackgroundTopColor =
+        applyAlpha(this.candidateBackgroundTopColor, panelBackgroundAlpha);
+    result.candidateBackgroundBottomColor =
+        applyAlpha(this.candidateBackgroundBottomColor, panelBackgroundAlpha);
+    result.candidateBackgroundSeparatorColor =
+        applyAlpha(this.candidateBackgroundSeparatorColor, panelBackgroundAlpha);
+    result.candidateBackgroundHighlightColor =
+        applyAlpha(this.candidateBackgroundHighlightColor, panelBackgroundAlpha);
+    result.candidateBackgroundBorderColor =
+        applyAlpha(this.candidateBackgroundBorderColor, panelBackgroundAlpha);
+    result.candidateBackgroundFocusedTopColor =
+        applyAlpha(this.candidateBackgroundFocusedTopColor, panelBackgroundAlpha);
+    result.candidateBackgroundFocusedBottomColor =
+        applyAlpha(this.candidateBackgroundFocusedBottomColor, panelBackgroundAlpha);
+    result.candidateBackgroundFocusedShadowColor =
+        applyAlpha(this.candidateBackgroundFocusedShadowColor, panelBackgroundAlpha);
+
+    result.symbolScrollBarTopColor =
+        applyAlpha(this.symbolScrollBarTopColor, panelBackgroundAlpha);
+    result.symbolScrollBarBottomColor =
+        applyAlpha(this.symbolScrollBarBottomColor, panelBackgroundAlpha);
+    result.symbolMinorCategoryTabSelectedColor =
+        applyAlpha(this.symbolMinorCategoryTabSelectedColor, panelBackgroundAlpha);
+    result.symbolMinorCategoryTabPressedColor =
+        applyAlpha(this.symbolMinorCategoryTabPressedColor, panelBackgroundAlpha);
+    result.symbolCandidateBackgroundTopColor =
+        applyAlpha(this.symbolCandidateBackgroundTopColor, panelBackgroundAlpha);
+    result.symbolCandidateBackgroundBottomColor =
+        applyAlpha(this.symbolCandidateBackgroundBottomColor, panelBackgroundAlpha);
+    result.symbolCandidateBackgroundHighlightColor =
+        applyAlpha(this.symbolCandidateBackgroundHighlightColor, panelBackgroundAlpha);
+    result.symbolCandidateBackgroundBorderColor =
+        applyAlpha(this.symbolCandidateBackgroundBorderColor, panelBackgroundAlpha);
+    result.symbolCandidateBackgroundSeparatorColor =
+        applyAlpha(this.symbolCandidateBackgroundSeparatorColor, panelBackgroundAlpha);
+    result.symbolMinorCategoryVerticalSeparatorColor =
+        applyAlpha(this.symbolMinorCategoryVerticalSeparatorColor, panelBackgroundAlpha);
+    result.symbolSeparatorColor = applyAlpha(this.symbolSeparatorColor, panelBackgroundAlpha);
+    result.symbolMajorButtonTopColor =
+        applyAlpha(this.symbolMajorButtonTopColor, panelBackgroundAlpha);
+    result.symbolMajorButtonBottomColor =
+        applyAlpha(this.symbolMajorButtonBottomColor, panelBackgroundAlpha);
+    result.symbolMajorButtonPressedTopColor =
+        applyAlpha(this.symbolMajorButtonPressedTopColor, panelBackgroundAlpha);
+    result.symbolMajorButtonPressedBottomColor =
+        applyAlpha(this.symbolMajorButtonPressedBottomColor, panelBackgroundAlpha);
+    result.symbolMajorButtonSelectedTopColor =
+        applyAlpha(this.symbolMajorButtonSelectedTopColor, panelBackgroundAlpha);
+    result.symbolMajorButtonSelectedBottomColor =
+        applyAlpha(this.symbolMajorButtonSelectedBottomColor, panelBackgroundAlpha);
+    result.symbolMajorButtonShadowColor =
+        applyAlpha(this.symbolMajorButtonShadowColor, panelBackgroundAlpha);
+    result.buttonFrameButtonPressedColor =
+        applyAlpha(this.buttonFrameButtonPressedColor, panelBackgroundAlpha);
+
+    result.buttonFrameBackgroundDrawable =
+        createAlphaAdjustedDrawable(this.buttonFrameBackgroundDrawable, panelBackgroundAlpha);
+    result.narrowFrameBackgroundDrawable =
+        createAlphaAdjustedDrawable(this.narrowFrameBackgroundDrawable, panelBackgroundAlpha);
+    result.keyboardFrameSeparatorBackgroundDrawable =
+        createAlphaAdjustedDrawable(
+            this.keyboardFrameSeparatorBackgroundDrawable, panelBackgroundAlpha);
+    result.symbolSeparatorAboveMajorCategoryBackgroundDrawable =
+        createAlphaAdjustedDrawable(
+            this.symbolSeparatorAboveMajorCategoryBackgroundDrawable, panelBackgroundAlpha);
+    result.conversionCandidateViewBackgroundDrawable =
+        createAlphaAdjustedDrawable(
+            this.conversionCandidateViewBackgroundDrawable, panelBackgroundAlpha);
+    result.symbolCandidateViewBackgroundDrawable =
+        createAlphaAdjustedDrawable(
+            this.symbolCandidateViewBackgroundDrawable, panelBackgroundAlpha);
+    result.symbolMajorCategoryBackgroundDrawable =
+        createAlphaAdjustedDrawable(
+            this.symbolMajorCategoryBackgroundDrawable, panelBackgroundAlpha);
+    result.scrollBarBackgroundDrawable =
+        createAlphaAdjustedDrawable(this.scrollBarBackgroundDrawable, panelBackgroundAlpha);
+    result.windowBackgroundDrawable = new ColorDrawable(Color.TRANSPARENT);
+
+    return result;
+  }
+
+  private static int applyAlpha(int color, float alpha) {
+    int newAlpha = Math.round(Color.alpha(color) * alpha);
+    return (color & 0x00FFFFFF) | (newAlpha << 24);
+  }
+
+  private static Drawable createAlphaAdjustedDrawable(Drawable drawable, float alpha) {
+    if (drawable == null) {
+      return null;
+    }
+    Drawable.ConstantState constantState = drawable.getConstantState();
+    if (constantState == null) {
+      return drawable;
+    }
+    try {
+      Drawable copy = constantState.newDrawable();
+      copy.mutate();
+      copy.setAlpha(Math.round(255.0f * alpha));
+      return copy;
+    } catch (RuntimeException e) {
+      return drawable;
+    }
+  }
 
   public static Skin getFallbackInstance() {
     return FALLBACK_INSTANCE;
