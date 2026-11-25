@@ -39,6 +39,8 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -77,8 +79,26 @@ class LocalSessionHandler implements SessionHandler {
 //        throw new RuntimeException("Invalid version name: " + versionName);
 //      }
 
+      // Extract the bundled mozc.data data file for the conversion engine.
+      File dataFile = new File(userProfileDirectory, "mozc.data");
+      if (!dataFile.exists()) {
+        MozcLog.i("copying bundled mozc.data -> " + dataFile.getAbsolutePath());
+        try (InputStream asset = context.getAssets().open("mozc.data");
+             FileOutputStream out = new FileOutputStream(dataFile)) {
+          byte[] buffer = new byte[64 * 1024];
+          int read;
+          while ((read = asset.read(buffer)) > 0) {
+            out.write(buffer, 0, read);
+          }
+        } catch (Exception e) {
+          MozcLog.e("Failed to copy bundled mozc.data: " + e.toString());
+          dataFile = null;
+        }
+      }
+
       // Load the shared object.
-      MozcJNI.load(userProfileDirectory.getAbsolutePath(), null, "" /*matcher.group(1)*/);
+      final String dataFilePath = dataFile != null ? dataFile.getAbsolutePath() : null;
+      MozcJNI.load(userProfileDirectory.getAbsolutePath(), dataFilePath, "" /*matcher.group(1)*/);
     }
 //    catch (NameNotFoundException e) {
 //      throw new RuntimeException(e);

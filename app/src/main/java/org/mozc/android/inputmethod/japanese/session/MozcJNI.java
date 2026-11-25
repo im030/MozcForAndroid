@@ -65,6 +65,10 @@ class MozcJNI {
       try {
         System.loadLibrary("mozc");
         MozcLog.v("loadLibrary succeeded");
+        if (!initialize()) {
+          MozcLog.e("initialize fails");
+          throw new RuntimeException("MozcJNI#initialize failed");
+        }
       } catch (Throwable e) {
         MozcLog.e("loadLibrary failed", e);
         throw new RuntimeException(e);
@@ -94,6 +98,12 @@ class MozcJNI {
    * @return blob of Command message.
    */
   static synchronized native byte[] evalCommand(byte[] command);
+
+  /**
+   * Registers native method implementations for this class.
+   * Must be called before any other native method is invoked.
+   */
+  private static native boolean initialize();
 
   /**
    * This method initializes the internal state of mozc server, especially dictionary data

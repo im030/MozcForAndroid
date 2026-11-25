@@ -24,6 +24,159 @@ android {
     namespace 'org.mozc.android.inputmethod.japanese'
 }
 
+
+def mozcSrcDir = file("${rootDir}/mozc/src")
+def mozcBuiltSo = file("${rootDir}/mozc/src/bazel-bin/android/jni/libmozc_lib.so")
+def mozcBuiltData = file("${rootDir}/mozc/src/bazel-bin/data_manager/oss/mozc.data")
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+def mozcAndroidSdkHome = System.getenv('ANDROID_SDK_HOME')
+        ?: System.getenv('ANDROID_HOME')
+        ?: System.getenv('ANDROID_SDK_BUILD_DIR')
+        ?: localProperties['sdk.dir']
+def mozcAndroidNdkHome = System.getenv('ANDROID_NDK_HOME')
+        ?: (mozcAndroidSdkHome != null ? "$mozcAndroidSdkHome/ndk/21.4.7075529" : null)
+
+def mozcPatchDir = rootProject.file('patches/mozc')
+
+tasks.register('patchMozcSubmodule') {
+    group = 'mozc'
+    description = 'Initialize the mozc submodule (if needed) and apply the local patches to it.'
+    doLast {
+        def mozcDirPath = "${rootDir}/mozc"
+        def mozcDir = file(mozcDirPath)
+        if (!new File(mozcDir, 'src/BUILD.bazel').exists()) {
+            project.logger.lifecycle('Initializing mozc submodule (recursive)...')
+            def initProc = new ProcessBuilder(['git', 'submodule', 'update', '--init', '--recursive', 'mozc'])
+                    .directory(rootProject.projectDir).start()
+            initProc.waitFor()
+            if (initProc.exitValue() != 0) {
+                throw new GradleException('git submodule update --init --recursive mozc failed')
+            }
+        }
+
+        def applyPatch = { String repoPath, String patchFilePath ->
+            def patchFileName = new File(patchFilePath).name
+            if (!new File(patchFilePath).exists()) {
+                throw new GradleException("patch file ${patchFilePath} is missing")
+            }
+            def checkProc = new ProcessBuilder(['git', '-C', repoPath, 'apply', '--check', patchFilePath]).start()
+            if (checkProc.waitFor() == 0) {
+                def applyProc = new ProcessBuilder(['git', '-C', repoPath, 'apply', patchFilePath]).start()
+                if (applyProc.waitFor() != 0) {
+                    throw new GradleException("failed to apply ${patchFileName} in ${repoPath}")
+                }
+                project.logger.lifecycle("Applied ${patchFileName} in ${repoPath}")
+            } else {
+                def reverseProc = new ProcessBuilder(['git', '-C', repoPath, 'apply', '--check', '--reverse', patchFilePath]).start()
+                if (reverseProc.waitFor() == 0) {
+                    project.logger.lifecycle("${patchFileName} already applied in ${repoPath}")
+                } else {
+                    throw new GradleException("patch ${patchFileName} does not apply to ${repoPath}")
+                }
+            }
+        }
+
+        applyPatch(mozcDirPath, "${mozcPatchDir}/mozc.patch")
+        applyPatch(new File(mozcDir, 'src/third_party/abseil-cpp').absolutePath, "${mozcPatchDir}/abseil-cpp.patch")
+    }
+}
+
+
+tasks.register('buildMozcLib', Exec) {
+    group = 'mozc'
+    description = 'Build the mozc JNI library from the mozc submodule (arm64-v8a).'
+    dependsOn 'patchMozcSubmodule'
+    if (mozcAndroidSdkHome == null || mozcAndroidNdkHome == null) {
+        throw new GradleException('ANDROID_SDK_HOME and ANDROID_NDK_HOME must be set (e.g. via ANDROID_HOME and local.properties sdk.dir)')
+    }
+    workingDir mozcSrcDir
+    commandLine 'bazelisk',
+        '--output_user_root=' + "${rootDir}/.mozc-bazel-cache",
+        'build',
+        '--config=oss_android',
+        '--cpu=arm64-v8a',
+        '--jobs=4',
+        '//android/jni:mozc_lib'
+    environment 'ANDROID_SDK_HOME', mozcAndroidSdkHome
+    environment 'ANDROID_NDK_HOME', mozcAndroidNdkHome
+    environment 'USE_BAZEL_VERSION', '5.4.0'
+}
+
+tasks.register('buildMozcData', Exec) {
+    group = 'mozc'
+    description = 'Build the Mozc data file (OSS) used by the mobile engine.'
+    dependsOn 'patchMozcSubmodule'
+    if (mozcAndroidSdkHome == null || mozcAndroidNdkHome == null) {
+        throw new GradleException('ANDROID_SDK_HOME and ANDROID_NDK_HOME must be set (e.g. via ANDROID_HOME and local.properties sdk.dir)')
+    }
+    workingDir mozcSrcDir
+    commandLine 'bazelisk',
+        '--output_user_root=' + "${rootDir}/.mozc-bazel-cache",
+        'build',
+        '--config=oss_linux',
+        '--jobs=4',
+        '//data_manager/oss:mozc_dataset_for_oss'
+    environment 'ANDROID_SDK_HOME', mozcAndroidSdkHome
+    environment 'ANDROID_NDK_HOME', mozcAndroidNdkHome
+    environment 'USE_BAZEL_VERSION', '5.4.0'
+}
+
+def mozcLibcxxShared = ['28.2.13676358', '27.2.12479018', '27.1.12297006', '27.0.12077973', '26.1.10909125', '25.1.8937393', '23.1.7779620']
+    .findResult { v ->
+        def f = file("${mozcAndroidSdkHome}/ndk/${v}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so")
+        f.exists() ? f : null
+    }
+
+tasks.register('copyMozcData') {
+    group = 'mozc'
+    description = 'Copy the built mozc data file into the app assets.'
+    dependsOn 'buildMozcData'
+    doLast {
+        if (!mozcBuiltData.exists()) {
+            throw new GradleException("mozc data file not found at ${mozcBuiltData}")
+        }
+        def target = file("${projectDir}/src/main/assets/mozc.data")
+        target.parentFile.mkdirs()
+        target.bytes = mozcBuiltData.bytes
+        project.logger.lifecycle("Copying ${mozcBuiltData} -> ${target}")
+    }
+}
+
+tasks.register('copyMozcLib') {
+    group = 'mozc'
+    description = 'Copy the built mozc JNI library into jniLibs.'
+    dependsOn 'buildMozcLib'
+    doLast {
+        if (!mozcBuiltSo.exists()) {
+            throw new GradleException("mozc JNI library not found at ${mozcBuiltSo}")
+        }
+        if (!mozcLibcxxShared.exists()) {
+            throw new GradleException("libc++_shared.so not found at ${mozcLibcxxShared}")
+        }
+        def target = file("${projectDir}/src/main/jniLibs/arm64-v8a/libmozc.so")
+        def cxxTarget = file("${projectDir}/src/main/jniLibs/arm64-v8a/libc++_shared.so")
+        target.parentFile.mkdirs()
+        target.bytes = mozcBuiltSo.bytes
+        cxxTarget.bytes = mozcLibcxxShared.bytes
+        project.logger.lifecycle("Copying ${mozcBuiltSo} -> ${target}")
+        project.logger.lifecycle("Copying ${mozcLibcxxShared} -> ${cxxTarget}")
+    }
+}
+
+afterEvaluate {
+    android.buildTypes.each { bt ->
+        def preTaskName = "pre${bt.name.capitalize()}Build"
+        tasks.named(preTaskName) {
+            dependsOn 'copyMozcLib'
+            dependsOn 'copyMozcData'
+        }
+    }
+}
+
 dependencies {
     compileOnly 'androidx.annotation:annotation:1.6.0'
     implementation 'androidx.autofill:autofill:1.3.0'
