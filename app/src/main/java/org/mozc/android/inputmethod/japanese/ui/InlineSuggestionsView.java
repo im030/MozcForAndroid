@@ -158,7 +158,7 @@ public class InlineSuggestionsView extends FrameLayout {
     final Context context = getContext();
     final Size size = new Size(
         ViewGroup.LayoutParams.WRAP_CONTENT,
-        suggestionH = Math.round(getResources().getDimensionPixelSize(R.dimen.button_frame_height) * 0.8f));
+        suggestionH = getResources().getDimensionPixelSize(R.dimen.button_frame_height));
     for (int i = 0; i < suggestions.size(); i++) {
       final int index = i;
       suggestions.get(i).inflate(context, size, context.getMainExecutor(),

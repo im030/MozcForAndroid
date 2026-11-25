@@ -302,8 +302,6 @@ public class MozcView extends FrameLayout implements MemoryManageable {
 
   @Override
   public void onFinishInflate() {
-    setKeyboardHeightRatio(100);
-
     leftFrameStubProxy.initialize(this,
                                   R.id.stub_left_frame, R.id.left_adjust_button,
                                   R.raw.adjust_arrow_left);
@@ -323,6 +321,8 @@ public class MozcView extends FrameLayout implements MemoryManageable {
             ClipboardHistoryManager.getInstance(getContext()).getEntries());
       }
     });
+
+    setKeyboardHeightRatio(100);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
       inlineSuggestionsView = new InlineSuggestionsView(getContext());
@@ -953,7 +953,8 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     boolean isSymbolInputViewVisible = getSymbolInputView().getVisibility() == View.VISIBLE;
     // Means only software keyboard or narrow frame
     boolean isDefaultView =
-        !candidateViewManager.isKeyboardCandidateViewVisible() && !isSymbolInputViewVisible;
+        (candidateViewManager == null || !candidateViewManager.isKeyboardCandidateViewVisible())
+            && !isSymbolInputViewVisible;
 
     if (narrowMode) {
       if (isDefaultView) {
@@ -987,11 +988,9 @@ public class MozcView extends FrameLayout implements MemoryManageable {
       if (narrowMode) {
         setLayoutHeight(getBottomFrame(), dimensionPixelSize.narrowImeWindowHeight);
       } else {
-        // In expanded mode the whole input area is constrained to the fixed visible height
-        // so the candidate grid replaces the keyboard without growing the window.
-        setLayoutHeight(getBottomFrame(),
-            candidateLayoutMode == CANDIDATE_LAYOUT_EXPANDED
-                ? getVisibleViewHeight() : imeWindowHeight);
+        // The input area is always constrained to the fixed footprint (keyboard + one
+        // row), in every non-narrow layout mode, so the window height never changes.
+        setLayoutHeight(getBottomFrame(), getVisibleViewHeight());
         setLayoutHeight(getKeyboardView(), getInputFrameHeight());
         setLayoutHeight(getKeyboardFrame(), LayoutParams.WRAP_CONTENT);
       }
@@ -1220,7 +1219,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     } else {
       getSymbolInputView().startOutAnimation();
     }
-    if (!candidateViewManager.isKeyboardCandidateViewVisible()) {
+    if (candidateViewManager == null || !candidateViewManager.isKeyboardCandidateViewVisible()) {
       resetBottomBackgroundHeight();
     }
   }
@@ -1235,8 +1234,11 @@ public class MozcView extends FrameLayout implements MemoryManageable {
         createFoldButtonListener(getKeyboardFrame(), getInputFrameHeight()));
 
     if (candidateViewManager != null) {
+      // In narrow mode the animated strip height is the narrow candidate window
+      // height, not the (raised) visible view height.
+      int windowHeight = narrowMode ? imeWindowHeight : getVisibleViewHeight();
       candidateViewManager.resetHeightDependingComponents(
-          getResources(), imeWindowHeight, inputFrameHeight);
+          getResources(), windowHeight, inputFrameHeight);
     }
 
     SymbolInputView symbolInputView = getSymbolInputView();
