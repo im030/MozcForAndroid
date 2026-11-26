@@ -275,6 +275,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
   private Skin skin = Skin.getFallbackInstance();
   private Skin baseSkin = Skin.getFallbackInstance();
   private Optional<Drawable> customBackground = Optional.absent();
+  private int customThemeColor = CustomBackgroundManager.NO_THEME_COLOR;
   @VisibleForTesting LayoutAdjustment layoutAdjustment = LayoutAdjustment.FILL;
   private int inputFrameHeight = 0;
   @VisibleForTesting int imeWindowHeight = 0;
@@ -576,11 +577,17 @@ public class MozcView extends FrameLayout implements MemoryManageable {
   }
 
   private void applyEffectiveSkin() {
-    Skin effectiveSkin = customBackground.isPresent()
-        ? baseSkin.createTranslucentCopy(
-            CustomBackgroundManager.KEY_BACKGROUND_ALPHA,
-            CustomBackgroundManager.PANEL_BACKGROUND_ALPHA)
-        : baseSkin;
+    Skin effectiveSkin = baseSkin;
+    customThemeColor = CustomBackgroundManager.NO_THEME_COLOR;
+    if (customBackground.isPresent()) {
+      customThemeColor = CustomBackgroundManager.getThemeColor(getContext());
+      if (customThemeColor != CustomBackgroundManager.NO_THEME_COLOR) {
+        effectiveSkin = effectiveSkin.withThemeColor(customThemeColor);
+      }
+      effectiveSkin = effectiveSkin.createTranslucentCopy(
+          CustomBackgroundManager.KEY_BACKGROUND_ALPHA,
+          CustomBackgroundManager.PANEL_BACKGROUND_ALPHA);
+    }
     skin = effectiveSkin;
     applySkin(effectiveSkin);
   }
@@ -599,12 +606,14 @@ public class MozcView extends FrameLayout implements MemoryManageable {
         skin.buttonFrameBackgroundDrawable.getConstantState().newDrawable());
     getInlineSuggestionsContainer().setBackgroundDrawable(
         skin.buttonFrameBackgroundDrawable.getConstantState().newDrawable());
-    tintButtonFrameIcon(getUndoButton(), skin.keyIconMainColor);
-    tintButtonFrameIcon(getRedoButton(), skin.keyIconMainColor);
-    tintButtonFrameIcon(getSelectAllButton(), skin.keyIconMainColor);
-    tintButtonFrameIcon(getCutButton(), skin.keyIconMainColor);
-    tintButtonFrameIcon(getCopyButton(), skin.keyIconMainColor);
-    tintButtonFrameIcon(getClipboardButton(), skin.keyIconMainColor);
+    int buttonIconColor = customThemeColor != CustomBackgroundManager.NO_THEME_COLOR
+        ? customThemeColor : skin.keyIconMainColor;
+    tintButtonFrameIcon(getUndoButton(), buttonIconColor);
+    tintButtonFrameIcon(getRedoButton(), buttonIconColor);
+    tintButtonFrameIcon(getSelectAllButton(), buttonIconColor);
+    tintButtonFrameIcon(getCutButton(), buttonIconColor);
+    tintButtonFrameIcon(getCopyButton(), buttonIconColor);
+    tintButtonFrameIcon(getClipboardButton(), buttonIconColor);
     getNarrowFrame().setSkin(skin);
     getKeyboardFrameSeparator().setBackgroundDrawable(
         skin.keyboardFrameSeparatorBackgroundDrawable.getConstantState().newDrawable());

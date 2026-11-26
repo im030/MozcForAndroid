@@ -309,9 +309,16 @@ public class CustomBackgroundBuilderActivity extends Activity {
     if (croppedBitmap == null || croppedBitmap.isRecycled()) {
       return;
     }
+    int themeColor = ColorSampler.sample(croppedBitmap);
     if (!CustomBackgroundManager.saveProcessedBitmap(this, croppedBitmap)) {
       Toast.makeText(this, R.string.custom_background_error_save, Toast.LENGTH_SHORT).show();
       return;
+    }
+    if (themeColor != ColorSampler.NO_COLOR) {
+      CustomBackgroundManager.setThemeColor(this, themeColor);
+    } else {
+      CustomBackgroundManager.getSharedPreferences(this).edit()
+          .remove(CustomBackgroundManager.PREF_THEME_COLOR).apply();
     }
     CustomBackgroundManager.setBrightness(
         this, progressToBrightness(brightnessSeekBar.getProgress()));

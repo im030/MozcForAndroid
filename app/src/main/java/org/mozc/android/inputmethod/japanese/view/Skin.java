@@ -39,6 +39,7 @@ import android.graphics.Paint;
 import android.graphics.Paint.Style;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -471,6 +472,68 @@ public class Skin {
     result.windowBackgroundDrawable = new ColorDrawable(Color.TRANSPARENT);
 
     return result;
+  }
+
+  /**
+   * Returns a copy whose candidate-view accents, IME button tints, and button-frame background
+   * use the supplied theme color instead of the skin's original colors. Alpha from the current
+   * (possibly translucent) colors is preserved, so the theme color stays see-through over a
+   * custom background.
+   */
+  public Skin withThemeColor(int themeColor) {
+    Skin result = new Skin(this);
+
+    result.buttonFrameBackgroundDrawable = createThemedButtonFrameBackgroundDrawable(themeColor);
+    result.conversionCandidateViewBackgroundDrawable =
+        createThemedButtonFrameBackgroundDrawable(themeColor);
+    result.symbolCandidateViewBackgroundDrawable =
+        createThemedButtonFrameBackgroundDrawable(themeColor);
+    result.candidateBackgroundTopColor =
+        withOriginalAlpha(darken(themeColor, 0.42f), this.candidateBackgroundTopColor);
+    result.candidateBackgroundBottomColor =
+        withOriginalAlpha(darken(themeColor, 0.18f), this.candidateBackgroundBottomColor);
+    result.symbolCandidateBackgroundTopColor =
+        withOriginalAlpha(darken(themeColor, 0.42f), this.symbolCandidateBackgroundTopColor);
+    result.symbolCandidateBackgroundBottomColor =
+        withOriginalAlpha(darken(themeColor, 0.18f), this.symbolCandidateBackgroundBottomColor);
+    result.candidateValueTextColor = withOriginalAlpha(0xFFFFFF, this.candidateValueTextColor);
+    result.candidateDescriptionTextColor =
+        withOriginalAlpha(0xFFB0B0B0, this.candidateDescriptionTextColor);
+    result.buttonFrameButtonPressedColor =
+        withOriginalAlpha(themeColor, this.buttonFrameButtonPressedColor);
+    result.candidateBackgroundFocusedTopColor =
+        withOriginalAlpha(themeColor, this.candidateBackgroundFocusedTopColor);
+    result.candidateBackgroundFocusedBottomColor =
+        withOriginalAlpha(darken(themeColor, 0.85f), this.candidateBackgroundFocusedBottomColor);
+    result.candidateScrollBarTopColor =
+        withOriginalAlpha(themeColor, this.candidateScrollBarTopColor);
+    result.candidateScrollBarBottomColor =
+        withOriginalAlpha(darken(themeColor, 0.85f), this.candidateScrollBarBottomColor);
+    result.keyboardFoldingButtonBackgroundDefaultColor =
+        withOriginalAlpha(themeColor, this.keyboardFoldingButtonBackgroundDefaultColor);
+    result.keyboardFoldingButtonBackgroundScrolledColor =
+        withOriginalAlpha(themeColor, this.keyboardFoldingButtonBackgroundScrolledColor);
+
+    return result;
+  }
+
+  private static Drawable createThemedButtonFrameBackgroundDrawable(int themeColor) {
+    GradientDrawable drawable = new GradientDrawable(
+        GradientDrawable.Orientation.TOP_BOTTOM,
+        new int[] { darken(themeColor, 0.42f), darken(themeColor, 0.18f) });
+    return drawable;
+  }
+
+  private static int withOriginalAlpha(int color, int referenceColor) {
+    return Color.argb(Color.alpha(referenceColor), Color.red(color), Color.green(color),
+        Color.blue(color));
+  }
+
+  private static int darken(int color, float factor) {
+    return Color.rgb(
+        Math.round(Color.red(color) * factor),
+        Math.round(Color.green(color) * factor),
+        Math.round(Color.blue(color) * factor));
   }
 
   private static int applyAlpha(int color, float alpha) {

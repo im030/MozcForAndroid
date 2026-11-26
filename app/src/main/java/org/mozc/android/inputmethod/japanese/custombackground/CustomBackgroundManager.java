@@ -60,10 +60,13 @@ public final class CustomBackgroundManager {
   public static final String PREF_ENABLED = "pref_custom_background_enabled";
   public static final String PREF_BRIGHTNESS = "pref_custom_background_brightness";
   public static final String PREF_VERSION = "pref_custom_background_version";
+  public static final String PREF_THEME_COLOR = "pref_custom_background_theme_color";
 
   public static final float MIN_BRIGHTNESS = 0.3f;
   public static final float MAX_BRIGHTNESS = 1.0f;
   public static final float DEFAULT_BRIGHTNESS = 1.0f;
+
+  public static final int NO_THEME_COLOR = -1;
 
   public static final float KEY_BACKGROUND_ALPHA = 0.72f;
   public static final float PANEL_BACKGROUND_ALPHA = 0.85f;
@@ -82,7 +85,8 @@ public final class CustomBackgroundManager {
   }
 
   public static boolean isCustomBackgroundPreference(String key) {
-    return PREF_ENABLED.equals(key) || PREF_BRIGHTNESS.equals(key) || PREF_VERSION.equals(key);
+    return PREF_ENABLED.equals(key) || PREF_BRIGHTNESS.equals(key) || PREF_VERSION.equals(key)
+        || PREF_THEME_COLOR.equals(key);
   }
 
   public static boolean isEnabled(Context context) {
@@ -103,6 +107,14 @@ public final class CustomBackgroundManager {
     getSharedPreferences(context).edit()
         .putFloat(PREF_BRIGHTNESS, clampBrightness(brightness))
         .apply();
+  }
+
+  public static int getThemeColor(Context context) {
+    return getSharedPreferences(context).getInt(PREF_THEME_COLOR, NO_THEME_COLOR);
+  }
+
+  public static void setThemeColor(Context context, int color) {
+    getSharedPreferences(context).edit().putInt(PREF_THEME_COLOR, color).apply();
   }
 
   public static long getVersion(Context context) {
@@ -233,6 +245,7 @@ public final class CustomBackgroundManager {
         .remove(PREF_ENABLED)
         .remove(PREF_BRIGHTNESS)
         .remove(PREF_VERSION)
+        .remove(PREF_THEME_COLOR)
         .apply();
   }
 
