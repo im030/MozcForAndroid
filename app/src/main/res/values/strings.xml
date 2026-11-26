@@ -334,7 +334,6 @@
       <!-- Custom keyboard background -->
       <string name="pref_keyboard_background_category_title">Keyboard background</string>
       <string name="custom_background_title">Custom keyboard background</string>
-      <string name="custom_background_summary_enabled">Custom background is on</string>
       <string name="custom_background_summary_disabled">Choose an image to use behind the keyboard</string>
       <string name="custom_background_empty_text">Choose an image to use as the keyboard background.</string>
       <string name="custom_background_choose_image">Choose image</string>

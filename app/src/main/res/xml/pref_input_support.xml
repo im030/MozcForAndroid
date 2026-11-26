@@ -89,11 +89,16 @@
         android:summary="@string/pref_skin_type_description"
         android:title="@string/pref_skin_type_title" />
 
-    <org.mozc.android.inputmethod.japanese.custombackground.CustomBackgroundPreference
+    <Preference
         android:key="pref_custom_background"
         android:persistent="false"
         android:summary="@string/custom_background_summary_disabled"
-        android:title="@string/custom_background_title" />
+        android:title="@string/custom_background_title">
+      <intent
+          android:action="android.intent.action.MAIN"
+          android:targetPackage="org.mozc.android.inputmethod.japanese"
+          android:targetClass="org.mozc.android.inputmethod.japanese.custombackground.CustomBackgroundBuilderActivity" />
+    </Preference>
 
     <ListPreference
         android:defaultValue="DEFAULT"
