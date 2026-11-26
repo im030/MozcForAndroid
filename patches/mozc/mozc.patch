@@ -1,0 +1,78 @@
+diff --git a/src/WORKSPACE.bazel b/src/WORKSPACE.bazel
+index ed4b93b47..dcb823a99 100644
+--- a/src/WORKSPACE.bazel
++++ b/src/WORKSPACE.bazel
+@@ -164,11 +164,13 @@ http_file(
+ # Zip code
+ http_archive(
+     name = "zip_code_ken_all",
+-    url = "https://www.post.japanpost.jp/zipcode/dl/kogaki/zip/ken_all.zip",
++    url = "https://github.com/hiroyuki-komatsu/japanpost_zipcode/raw/621d059fbcbfae17bfca15b439692bae934268c3/ken_all.zip",
++    sha256 = "3adc97d8e19e1168a6cdcb2fce759d0e9e613a9a3b630cc180aecfd56ae81eaf",
+     build_file_content = "exports_files([\"KEN_ALL.CSV\"])",
+ )
+ http_archive(
+     name = "zip_code_jigyosyo",
+-    url = "https://www.post.japanpost.jp/zipcode/dl/jigyosyo/zip/jigyosyo.zip",
++    url = "https://github.com/hiroyuki-komatsu/japanpost_zipcode/raw/621d059fbcbfae17bfca15b439692bae934268c3/jigyosyo.zip",
++    sha256 = "14be1030f607c5f819f2f45a485e89511907bdd1d62e7fb1931b6e48a3431c3a",
+     build_file_content = "exports_files([\"JIGYOSYO.CSV\"])",
+ )
+diff --git a/src/android/jni/BUILD.bazel b/src/android/jni/BUILD.bazel
+index 2d278daed..cec817af2 100644
+--- a/src/android/jni/BUILD.bazel
++++ b/src/android/jni/BUILD.bazel
+@@ -7,10 +7,12 @@
+ #
+ #     * Redistributions of source code must retain the above copyright
+ # notice, this list of conditions and the following disclaimer.
++#
+ #     * Redistributions in binary form must reproduce the above
+ # copyright notice, this list of conditions and the following disclaimer
+ # in the documentation and/or other materials provided with the
+ # distribution.
++#
+ #     * Neither the name of Google Inc. nor the names of its
+ # contributors may be used to endorse or promote products derived from
+ # this software without specific prior written permission.
+@@ -34,13 +36,18 @@
+ # Usage:
+ # % blaze --blazerc android/blazerc build --config=android_arm android/jni:libmozc.so
+ 
+-load("//:build_defs.bzl", "cc_library_mozc")
+-
+-cc_library_mozc(
++# The upstream rule is a plain `cc_library`, which exports mozcjni.pic.o but never
++# links the dependency closure into the .so, leaving dlopen() to fail at runtime.
++# Use a `cc_binary` with linkshared so the resulting .so is self-contained.
++cc_binary(
+     name = "mozc_lib",
+     srcs = ["mozcjni.cc"],
++    linkshared = 1,
++    linkopts = ["-lm", "-ldl", "-lc++_shared"],
+     visibility = ["//:__pkg__"],
++    copts = ["-funsigned-char"],
+     deps = [
++        "//:macro",
+         "//base:logging",
+         "//base:singleton",
+         "//base:system_util",
+@@ -57,5 +64,4 @@ cc_library_mozc(
+         "@com_google_absl//absl/status:statusor",
+         "@com_google_absl//absl/strings",
+     ],
+-    alwayslink = 1,
+ )
+diff --git a/src/android/jni/mozcjni.cc b/src/android/jni/mozcjni.cc
+index b3a35989c..01c6bd184 100644
+--- a/src/android/jni/mozcjni.cc
++++ b/src/android/jni/mozcjni.cc
+@@ -184,7 +184,7 @@ jstring JNICALL getDataVersion(JNIEnv *env) {
+ extern "C" {
+ 
+ JNIEXPORT jboolean JNICALL
+-Java_com_google_android_inputmethod_japanese_session_MozcJNI_initialize(
++Java_org_mozc_android_inputmethod_japanese_session_MozcJNI_initialize(
+     JNIEnv *env, jclass clazz) {
+   if (!env) {
+     // Fatal error. No way to recover.
