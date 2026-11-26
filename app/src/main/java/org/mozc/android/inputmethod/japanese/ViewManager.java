@@ -964,7 +964,11 @@ public class ViewManager implements ViewManagerInterface {
   @Override
   public void refreshCustomBackground() {
     if (mozcView != null) {
-      mozcView.setCustomBackground(CustomBackgroundManager.loadDrawable(mozcView.getContext()));
+      if (hardwareKeyboardExist) {
+        mozcView.setCustomBackground(Optional.absent());
+      } else {
+        mozcView.setCustomBackground(CustomBackgroundManager.loadDrawable(mozcView.getContext()));
+      }
     }
   }
 
@@ -1064,6 +1068,7 @@ public class ViewManager implements ViewManagerInterface {
   public void onConfigurationChanged(Configuration newConfig) {
     primaryKeyCodeConverter.setConfiguration(newConfig);
     hardwareKeyboardExist = newConfig.keyboard != Configuration.KEYBOARD_NOKEYS;
+    refreshCustomBackground();
     if (newConfig.hardKeyboardHidden != Configuration.HARDKEYBOARDHIDDEN_UNDEFINED){
       narrowModeByConfiguration =
           newConfig.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO;
