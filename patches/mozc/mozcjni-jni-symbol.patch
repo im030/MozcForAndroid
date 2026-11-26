@@ -1,0 +1,13 @@
+diff --git a/src/android/jni/mozcjni.cc b/src/android/jni/mozcjni.cc
+index 5e9cb9b7d..44f5dc130 100644
+--- a/src/android/jni/mozcjni.cc
++++ b/src/android/jni/mozcjni.cc
+@@ -182,7 +182,7 @@ jstring JNICALL getDataVersion(JNIEnv* env) {
+ extern "C" {
+ 
+ JNIEXPORT jboolean JNICALL
+-Java_com_google_android_apps_inputmethod_libs_mozc_session_MozcJni_initialize(
++Java_org_mozc_android_inputmethod_japanese_session_MozcJNI_initialize(
+     JNIEnv* env, jclass clazz) {
+   if (!env) {
+     // Fatal error. No way to recover.
