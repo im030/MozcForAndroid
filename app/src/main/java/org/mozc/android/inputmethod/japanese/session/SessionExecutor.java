@@ -440,8 +440,10 @@ public class SessionExecutor {
       // reason of less powerful devices.
       Input.Builder inputBuilder = context.inputBuilder;
       Optional<Handler> callbackHandler = context.callbackHandler;
-      if (callbackHandler.isPresent()
-          && inputBuilder.getCommand().getType() != SessionCommand.CommandType.NONE) {
+      boolean isExpandSuggestion = inputBuilder.getType() == CommandType.SEND_COMMAND
+          && inputBuilder.hasCommand()
+          && inputBuilder.getCommand().getType() == SessionCommand.CommandType.NONE;
+      if (callbackHandler.isPresent() && !isExpandSuggestion) {
         // Do not squash by EXPAND_SUGGESTION request, because the result of EXPAND_SUGGESTION
         // won't affect the inputConnection in MozcService, as the result should update
         // only candidates conceptually.

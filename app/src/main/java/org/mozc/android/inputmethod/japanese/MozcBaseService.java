@@ -564,8 +564,11 @@ public class MozcBaseService extends InputMethodService {
         Optional<Command> command, Optional<KeyEventInterface> triggeringKeyEvent) {
       Preconditions.checkArgument(Preconditions.checkNotNull(command).isPresent());
       Preconditions.checkNotNull(triggeringKeyEvent);
-      if (command.get().getInput().getCommand().getType()
-          != SessionCommand.CommandType.NONE) {
+      Input input = command.get().getInput();
+      boolean isExpandSuggestion = input.getType() == CommandType.SEND_COMMAND
+          && input.hasCommand()
+          && input.getCommand().getType() == SessionCommand.CommandType.NONE;
+      if (!isExpandSuggestion) {
         // For expanding suggestions, we don't need to update our rendering result.
         renderInputConnection(command.get(), triggeringKeyEvent.orNull());
       }
