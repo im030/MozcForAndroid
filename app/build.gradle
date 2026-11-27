@@ -2,6 +2,21 @@ plugins {
     id 'com.android.application'
 }
 
+def mozcVersionFile = rootProject.file('mozc/src/version.bzl')
+def mozcVersionParts = [MAJOR: '0', MINOR: '0', BUILD_OSS: '0']
+if (mozcVersionFile.exists()) {
+    mozcVersionFile.eachLine { line ->
+        def matcher = line =~ /^\s*(MAJOR|MINOR|BUILD_OSS)\s*=\s*(\d+)/
+        if (matcher.find()) {
+            mozcVersionParts[matcher.group(1)] = matcher.group(2)
+        }
+    }
+}
+def mozcVersionName = "${mozcVersionParts.MAJOR}.${mozcVersionParts.MINOR}.${mozcVersionParts.BUILD_OSS}"
+def appOwnVersion = (project.findProperty('mozcforandroid.version') ?: '1').toString()
+def appVersionName = "${mozcVersionName}-${appOwnVersion}"
+def appVersionCode = mozcVersionParts.BUILD_OSS.toInteger() * 1000 + appOwnVersion.toInteger()
+
 android {
     compileSdk 34
 
@@ -9,6 +24,8 @@ android {
         applicationId "org.mozc.android.inputmethod.japanese"
         minSdk 22
         targetSdk 34
+        versionName appVersionName
+        versionCode appVersionCode
     }
 
     buildTypes {

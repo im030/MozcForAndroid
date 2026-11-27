@@ -29,9 +29,7 @@
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="6028153"
-          android:versionName="2.23.2815.103-arm64">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
   <!-- Google Japanese Input (the main code) requires the following permissions. -->
   <uses-permission android:name="android.permission.VIBRATE" />
