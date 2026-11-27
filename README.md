@@ -3,7 +3,9 @@
 ### Modernized Mozc for Android
 
 #### Changes
-
+- Clipboard history
+- Compact mode for romaji input
+- Custom background
 - Swipe to input symbols for QWERTY keyboard
 - Inline password manager support
 - Fixed unable to input text after submit once on newer Android versions (13+)
