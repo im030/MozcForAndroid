@@ -30,6 +30,7 @@
 package org.mozc.android.inputmethod.japanese;
 
 import org.mozc.android.inputmethod.japanese.FeedbackManager.FeedbackEvent;
+import org.mozc.android.inputmethod.japanese.custombackground.CustomBackgroundManager;
 import org.mozc.android.inputmethod.japanese.emoji.EmojiProviderType;
 import org.mozc.android.inputmethod.japanese.keyboard.BackgroundDrawableFactory;
 import org.mozc.android.inputmethod.japanese.keyboard.BackgroundDrawableFactory.DrawableType;
@@ -717,6 +718,24 @@ public class SymbolInputView extends InOutAnimatedFrameLayout implements MemoryM
         skin.buttonFrameBackgroundDrawable.getConstantState().newDrawable());
   }
 
+  private void updateButtonFrameIconsTint() {
+    View buttonFrame = findViewById(R.id.button_frame_in_symbol_view);
+    if (buttonFrame == null) {
+      return;
+    }
+    int buttonIconColor = customThemeColor != CustomBackgroundManager.NO_THEME_COLOR
+        ? customThemeColor : skin.keyIconMainColor;
+    for (int id : new int[] {
+        R.id.undo_button,
+        R.id.redo_button,
+        R.id.select_all_button,
+        R.id.cut_button,
+        R.id.copy_button,
+        R.id.clipboard_button}) {
+      MozcView.tintButtonFrameIcon(buttonFrame.findViewById(id), buttonIconColor);
+    }
+  }
+
   /**
    * Sets click event handlers to each major category button.
    * It is necessary that the inflation has been done before this method invocation.
@@ -1218,6 +1237,18 @@ public class SymbolInputView extends InOutAnimatedFrameLayout implements MemoryM
     }
   }
 
+  private int customThemeColor = CustomBackgroundManager.NO_THEME_COLOR;
+
+  void setCustomThemeColor(int customThemeColor) {
+    if (this.customThemeColor == customThemeColor) {
+      return;
+    }
+    this.customThemeColor = customThemeColor;
+    if (isInflated()) {
+      updateButtonFrameIconsTint();
+    }
+  }
+
   void setSkin(Skin skin) {
     Preconditions.checkNotNull(skin);
     if (this.skin.equals(skin)) {
@@ -1245,6 +1276,7 @@ public class SymbolInputView extends InOutAnimatedFrameLayout implements MemoryM
     updateMajorCategoryButtonsSkin();
     updateMinorCategoryBackgroundSkin();
     updateNumberKeyboardSkin();
+    updateButtonFrameIconsTint();
     updateSeparatorsSkin();
     getMicrophoneButton().setSkin(skin);
 

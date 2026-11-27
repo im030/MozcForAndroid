@@ -488,6 +488,8 @@ public class Skin {
         createThemedButtonFrameBackgroundDrawable(themeColor);
     result.symbolCandidateViewBackgroundDrawable =
         createThemedButtonFrameBackgroundDrawable(themeColor);
+    result.symbolMajorCategoryBackgroundDrawable =
+        createThemedButtonFrameBackgroundDrawable(themeColor);
     result.candidateBackgroundTopColor =
         withOriginalAlpha(darken(themeColor, 0.42f), this.candidateBackgroundTopColor);
     result.candidateBackgroundBottomColor =
@@ -509,6 +511,22 @@ public class Skin {
         withOriginalAlpha(themeColor, this.candidateScrollBarTopColor);
     result.candidateScrollBarBottomColor =
         withOriginalAlpha(darken(themeColor, 0.85f), this.candidateScrollBarBottomColor);
+    result.symbolScrollBarTopColor =
+        withOriginalAlpha(themeColor, this.symbolScrollBarTopColor);
+    result.symbolScrollBarBottomColor =
+        withOriginalAlpha(darken(themeColor, 0.85f), this.symbolScrollBarBottomColor);
+    result.symbolMinorCategoryTabSelectedColor =
+        withOriginalAlpha(themeColor, this.symbolMinorCategoryTabSelectedColor);
+    result.symbolMinorCategoryTabPressedColor =
+        withOriginalAlpha(themeColor, this.symbolMinorCategoryTabPressedColor);
+    result.symbolMajorButtonSelectedTopColor =
+        withOriginalAlpha(themeColor, this.symbolMajorButtonSelectedTopColor);
+    result.symbolMajorButtonSelectedBottomColor =
+        withOriginalAlpha(darken(themeColor, 0.85f), this.symbolMajorButtonSelectedBottomColor);
+    result.symbolMajorButtonPressedTopColor =
+        withOriginalAlpha(themeColor, this.symbolMajorButtonPressedTopColor);
+    result.symbolMajorButtonPressedBottomColor =
+        withOriginalAlpha(darken(themeColor, 0.85f), this.symbolMajorButtonPressedBottomColor);
     result.keyboardFoldingButtonBackgroundDefaultColor =
         withOriginalAlpha(themeColor, this.keyboardFoldingButtonBackgroundDefaultColor);
     result.keyboardFoldingButtonBackgroundScrolledColor =

@@ -595,6 +595,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
   @SuppressWarnings("deprecation")
   private void applySkin(Skin skin) {
     getKeyboardView().setSkin(skin);
+    getSymbolInputView().setCustomThemeColor(customThemeColor);
     getSymbolInputView().setSkin(skin);
     candidateViewManager.setSkin(skin);
     getMicrophoneButton().setBackgroundDrawable(BackgroundDrawableFactory.createPressableDrawable(
@@ -1375,7 +1376,7 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     return findViewById(R.id.inline_suggestions_container);
   }
 
-  private static void tintButtonFrameIcon(View view, int color) {
+  static void tintButtonFrameIcon(View view, int color) {
     if (view instanceof ImageView) {
       ((ImageView) view).setColorFilter(color, PorterDuff.Mode.SRC_IN);
     }
