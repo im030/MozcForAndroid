@@ -32,7 +32,7 @@
 <!-- CONTRACT : All the key names must start with "pref_tweak_" -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
   <PreferenceCategory android:title="Logging">
-    <CheckBoxPreference android:key="pref_tweak_logging_protocol_buffers"
+    <SwitchPreference android:key="pref_tweak_logging_protocol_buffers"
         android:title="Logging protocol buffers" android:defaultValue="false"
         android:summary="Enable if you want verbose log of protocol buffers. This makes the performance far slower." />
   </PreferenceCategory>

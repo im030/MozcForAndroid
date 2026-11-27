@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="mozc_settings_background">#1A1D24</color>
+  <color name="mozc_settings_card">#23262E</color>
+  <color name="mozc_settings_accent">#7DB4FA</color>
+  <color name="mozc_settings_accent_dark">#2563EB</color>
+  <color name="mozc_settings_text_primary">#E8EAF0</color>
+  <color name="mozc_settings_text_secondary">#9AA3AF</color>
+</resources>

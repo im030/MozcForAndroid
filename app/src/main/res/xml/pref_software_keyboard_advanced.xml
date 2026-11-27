@@ -33,13 +33,13 @@
                   xmlns:mozc="http://schemas.android.com/apk/res-auto" >
   <PreferenceCategory android:title="@string/pref_other_input_support_preference_category_title"
                       android:persistent="false" >
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="true"
         android:key="pref_english_word_suggestions_key"
         android:summary="@string/pref_english_word_suggestions_description"
         android:title="@string/pref_english_word_suggestions_title" />
 
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="false"
         android:dependency="pref_english_word_suggestions_key"
         android:key="pref_english_word_suggestions_insert_space_key"
@@ -66,7 +66,7 @@
         android:summary="@string/pref_input_style_setting_description"
         android:title="@string/pref_input_style_title" />
 
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="false"
         android:key="pref_portrait_qwerty_layout_for_alphabet_key"
         android:summary="@string/pref_qwerty_layout_for_alphabet_description"
@@ -106,7 +106,7 @@
   <PreferenceCategory android:title="@string/pref_software_keyboard_preferences_landscape_title"
                       android:key="pref_software_keyboard_advanced_landscape_key"
                       android:persistent="false" >
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="true"
         android:key="pref_use_portrait_keyboard_settings_for_landscape_key"
         android:disableDependentsState="true"
@@ -130,7 +130,7 @@
         android:title="@string/pref_input_style_title"
         android:dependency="pref_use_portrait_keyboard_settings_for_landscape_key" />
 
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="false"
         android:key="pref_landscape_qwerty_layout_for_alphabet_key"
         android:summary="@string/pref_qwerty_layout_for_alphabet_description"

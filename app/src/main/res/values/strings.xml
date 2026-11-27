@@ -48,6 +48,12 @@
     <string name="pref_fragment_user_feedback_title">User feedback</string>
     <string name="pref_fragment_about_title">About</string>
     <string name="pref_fragment_development_title">Development</string>
+    <string name="pref_fragment_software_keyboard_summary">Layout, flick and height</string>
+    <string name="pref_fragment_input_support_summary">Feedback and skins</string>
+    <string name="pref_fragment_conversion_summary">Conversion and emoji settings</string>
+    <string name="pref_fragment_dictionary_summary">Personalization and user dictionary</string>
+    <string name="pref_fragment_about_summary">Version and launcher icon</string>
+    <string name="pref_fragment_development_summary">Debug options</string>
 
     <string name="pref_software_keyboard_preferences_portrait_title">Software keyboard preferences for portrait mode</string>
     <string name="pref_software_keyboard_preferences_landscape_title">Software keyboard preferences for landscape mode</string>

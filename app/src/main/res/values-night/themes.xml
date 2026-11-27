@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="AppThemeSelector" parent="android:Theme.DeviceDefault"/>
+    <style name="AppThemeSelectorSettings" parent="android:Theme.DeviceDefault">
+        <item name="android:windowBackground">@color/mozc_settings_background</item>
+        <item name="android:colorPrimary">@color/mozc_settings_accent</item>
+        <item name="android:colorPrimaryDark">@color/mozc_settings_accent_dark</item>
+        <item name="android:colorSecondary">@color/mozc_settings_accent</item>
+        <item name="android:colorAccent">@color/mozc_settings_accent</item>
+
+        <item name="android:preferenceStyle">@style/MozcPreference</item>
+        <item name="android:checkBoxPreferenceStyle">@style/MozcCheckBoxPreference</item>
+        <item name="android:switchPreferenceStyle">@style/MozcSwitchPreference</item>
+        <item name="android:dialogPreferenceStyle">@style/MozcDialogPreference</item>
+        <item name="android:preferenceScreenStyle">@style/MozcScreenPreference</item>
+        <item name="android:preferenceCategoryStyle">@style/MozcCategoryPreference</item>
+        <item name="android:preferenceInformationStyle">@style/MozcPreference</item>
+        <item name="android:editTextPreferenceStyle">@style/MozcDialogPreference</item>
+
+        <item name="android:textColorPrimary">@color/mozc_settings_text_primary</item>
+        <item name="android:textColorSecondary">@color/mozc_settings_text_secondary</item>
+    </style>
+
+</resources>

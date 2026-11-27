@@ -31,25 +31,25 @@
 -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
   <PreferenceCategory android:title="@string/pref_conversion_category_title">
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="false"
         android:key="pref_space_character_form_key"
         android:summary="@string/pref_space_character_form_description"
         android:title="@string/pref_space_character_form_title" />
 
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="true"
         android:key="pref_kana_modifier_insensitive_conversion"
         android:summary="@string/pref_kana_modifier_insensitive_conversion_description"
         android:title="@string/pref_kana_modifier_insensitive_conversion_title" />
 
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="true"
         android:key="pref_typing_correction"
         android:summary="@string/pref_typing_correction_description"
         android:title="@string/pref_typing_correction_title" />
 
-    <CheckBoxPreference
+    <SwitchPreference
         android:defaultValue="false"
         android:key="pref_other_anonimous_mode_key"
         android:summary="@string/pref_other_incognito_mode_description"

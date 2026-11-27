@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+  <!-- Typography for Mozc settings rows. -->
+  <style name="TextAppearanceMozcPreferenceTitle" parent="@android:style/TextAppearance.Material.Body1">
+    <item name="android:textSize">16sp</item>
+    <item name="android:textColor">@color/mozc_settings_text_primary</item>
+  </style>
+
+  <style name="TextAppearanceMozcPreferenceSummary" parent="@android:style/TextAppearance.Material.Caption">
+    <item name="android:textSize">13sp</item>
+    <item name="android:textColor">@color/mozc_settings_text_secondary</item>
+  </style>
+
+  <style name="TextAppearanceMozcCategory" parent="@android:style/TextAppearance.Material.Subhead">
+    <item name="android:textSize">14sp</item>
+    <item name="android:textStyle">bold</item>
+    <item name="android:textColor">@color/mozc_settings_accent</item>
+  </style>
+
+  <!-- Generic preference row. -->
+  <style name="MozcPreference">
+    <item name="android:layout">@layout/pref_item_mozc</item>
+  </style>
+
+  <!-- CheckBoxPreference. -->
+  <style name="MozcCheckBoxPreference">
+    <item name="android:layout">@layout/pref_item_mozc</item>
+    <item name="android:widgetLayout">@layout/pref_widget_checkbox_mozc</item>
+  </style>
+
+  <!-- SwitchPreference. -->
+  <style name="MozcSwitchPreference">
+    <item name="android:layout">@layout/pref_item_mozc</item>
+    <item name="android:widgetLayout">@layout/pref_widget_switch_mozc</item>
+  </style>
+
+  <!-- DialogPreference (ListPreference, MozcMultiSelectListPreference, Clear*Preference). -->
+  <style name="MozcDialogPreference">
+    <item name="android:layout">@layout/pref_item_mozc</item>
+  </style>
+
+  <!-- Nested PreferenceScreen row. -->
+  <style name="MozcScreenPreference">
+    <item name="android:layout">@layout/pref_item_mozc</item>
+    <item name="android:selectable">true</item>
+  </style>
+
+  <!-- PreferenceCategory header. -->
+  <style name="MozcCategoryPreference">
+    <item name="android:layout">@layout/pref_category_mozc</item>
+    <item name="android:selectable">false</item>
+    <item name="android:shouldDisableView">false</item>
+  </style>
+
+</resources>

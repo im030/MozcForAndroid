@@ -44,6 +44,12 @@
     <string name="pref_fragment_user_feedback_title">ユーザフィードバック</string>
     <string name="pref_fragment_about_title">概要</string>
     <string name="pref_fragment_development_title">開発</string>
+    <string name="pref_fragment_software_keyboard_summary">レイアウト、フリック、高さ</string>
+    <string name="pref_fragment_input_support_summary">フィードバックとスキン</string>
+    <string name="pref_fragment_conversion_summary">変換と絵文字</string>
+    <string name="pref_fragment_dictionary_summary">パーソナライズとユーザ辞書</string>
+    <string name="pref_fragment_about_summary">バージョンとランチャーアイコン</string>
+    <string name="pref_fragment_development_summary">デバッグオプション</string>
 
     <string name="pref_software_keyboard_preferences_portrait_title">縦画面のソフトウェアキーボード設定</string>
     <string name="pref_software_keyboard_preferences_landscape_title">横画面のソフトウェアキーボード設定</string>

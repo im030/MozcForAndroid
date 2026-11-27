@@ -32,7 +32,9 @@
 <preference-headers xmlns:android="http://schemas.android.com/apk/res/android" >
   <header
       android:fragment="org.mozc.android.inputmethod.japanese.preference.PreferenceBaseFragment"
-      android:title="@string/pref_fragment_development_title" >
+      android:title="@string/pref_fragment_development_title"
+      android:icon="@drawable/ic_settings_development"
+      android:summary="@string/pref_fragment_development_summary" >
 
     <!-- "PREFERENCE_PAGE" attribute corresponds to MozcBasePreferenceActivity.PreferencePage
          enumlator. -->
