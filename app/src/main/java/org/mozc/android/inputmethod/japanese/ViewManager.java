@@ -614,7 +614,7 @@ public class ViewManager implements ViewManagerInterface {
     boolean expanding =
         outCommand.getInput().getType() == ProtoCommands.Input.CommandType.SEND_COMMAND
         && outCommand.getInput().getCommand().getType()
-            == ProtoCommands.SessionCommand.CommandType.EXPAND_SUGGESTION;
+            == ProtoCommands.SessionCommand.CommandType.NONE;
     int layoutMode = CANDIDATE_LAYOUT_NORMAL;
     if (outCommand.getOutput().getAllCandidateWords().getCandidatesCount() > 0) {
       layoutMode = expanding ? CANDIDATE_LAYOUT_EXPANDED : CANDIDATE_LAYOUT_STRIP;

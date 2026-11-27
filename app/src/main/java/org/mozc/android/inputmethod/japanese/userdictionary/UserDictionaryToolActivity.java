@@ -33,7 +33,7 @@ import org.mozc.android.inputmethod.japanese.MozcLog;
 import org.mozc.android.inputmethod.japanese.MozcUtil;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionary.Entry;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionary.PosType;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommandStatus.Status;
+import org.mozc.android.inputmethod.japanese.userdictionary.UserDictionaryStatus.Status;
 import org.mozc.android.inputmethod.japanese.R;
 import org.mozc.android.inputmethod.japanese.session.SessionExecutor;
 import org.mozc.android.inputmethod.japanese.session.SessionHandlerFactory;
@@ -163,6 +163,7 @@ public class UserDictionaryToolActivity extends Activity {
     // Initialize model.
     Context applicationContext = getApplicationContext();
     model = new UserDictionaryToolModel(
+        applicationContext,
         SessionExecutor.getInstanceInitializedIfNecessary(
             new SessionHandlerFactory(applicationContext), applicationContext));
     model.createSession();

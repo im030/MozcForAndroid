@@ -29,12 +29,13 @@
 
 package org.mozc.android.inputmethod.japanese.preference;
 
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.GenericStorageEntry.StorageType;
-import org.mozc.android.inputmethod.japanese.session.SessionExecutor;
-import org.mozc.android.inputmethod.japanese.session.SessionHandlerFactory;
+import org.mozc.android.inputmethod.japanese.MozcBaseService;
+import org.mozc.android.inputmethod.japanese.model.SymbolMajorCategory;
 
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.preference.DialogPreference;
 import android.util.AttributeSet;
 
@@ -55,11 +56,14 @@ public class ClearSymbolHistoryDialogPreference extends DialogPreference {
   @Override
   public void onClick(DialogInterface dialog, int which) {
     if (which == DialogInterface.BUTTON_POSITIVE) {
-      SessionExecutor sessionExecutor = SessionExecutor.getInstanceInitializedIfNecessary(
-          new SessionHandlerFactory(getContext()), getContext());
-      sessionExecutor.clearStorage(StorageType.EMOJI_HISTORY);
-      sessionExecutor.clearStorage(StorageType.EMOTICON_HISTORY);
-      sessionExecutor.clearStorage(StorageType.SYMBOL_HISTORY);
+      SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(
+          getContext());
+      MozcBaseService.SymbolHistoryStorageImpl.clear(sharedPreferences,
+          SymbolMajorCategory.SYMBOL);
+      MozcBaseService.SymbolHistoryStorageImpl.clear(sharedPreferences,
+          SymbolMajorCategory.EMOTICON);
+      MozcBaseService.SymbolHistoryStorageImpl.clear(sharedPreferences,
+          SymbolMajorCategory.EMOJI);
     }
   }
 }

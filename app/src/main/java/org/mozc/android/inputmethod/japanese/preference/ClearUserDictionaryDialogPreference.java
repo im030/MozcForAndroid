@@ -29,8 +29,7 @@
 
 package org.mozc.android.inputmethod.japanese.preference;
 
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommand;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommand.CommandType;
+import org.mozc.android.inputmethod.japanese.MozcLog;
 import org.mozc.android.inputmethod.japanese.session.SessionExecutor;
 import org.mozc.android.inputmethod.japanese.session.SessionHandlerFactory;
 
@@ -38,6 +37,9 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.preference.DialogPreference;
 import android.util.AttributeSet;
+
+import java.io.File;
+import java.io.IOException;
 
 /**
  * A DialogPreference to clear user dictionary.
@@ -55,11 +57,19 @@ public class ClearUserDictionaryDialogPreference extends DialogPreference {
   @Override
   public void onClick(DialogInterface dialog, int which) {
     if (which == DialogInterface.BUTTON_POSITIVE) {
+      Context context = getContext();
+      File storageFile = new File(context.getFilesDir(), "user_dictionary.db");
+      try {
+        if (storageFile.exists() && !storageFile.delete()) {
+          MozcLog.w("Failed to delete user dictionary storage file: " + storageFile);
+        }
+      } catch (Exception e) {
+        MozcLog.w("Failed to delete user dictionary storage file: " + e.getMessage());
+      }
+
       SessionExecutor sessionExecutor = SessionExecutor.getInstanceInitializedIfNecessary(
-          new SessionHandlerFactory(getContext()), getContext());
-      sessionExecutor.sendUserDictionaryCommand(UserDictionaryCommand.newBuilder()
-          .setType(CommandType.CLEAR_STORAGE)
-          .build());
+          new SessionHandlerFactory(context), context);
+      sessionExecutor.reload();
     }
   }
 }

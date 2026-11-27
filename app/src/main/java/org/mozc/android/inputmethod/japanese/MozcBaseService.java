@@ -48,13 +48,12 @@ import org.mozc.android.inputmethod.japanese.model.SymbolMajorCategory;
 import org.mozc.android.inputmethod.japanese.mushroom.MushroomResultProxy;
 import org.mozc.android.inputmethod.japanese.preference.ClientSidePreference;
 import org.mozc.android.inputmethod.japanese.preference.PreferenceUtil;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidates;
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidateWindow;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Command;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input.CommandType;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Context.InputFieldType;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.DeletionRange;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.GenericStorageEntry.StorageType;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input.TouchEvent;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Output;
@@ -76,7 +75,6 @@ import org.mozc.android.inputmethod.japanese.view.Skin;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.protobuf.ByteString;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
@@ -184,30 +182,45 @@ public class MozcBaseService extends InputMethodService {
   }
 
   /** Adapter implementation of the symbol history manipulation. */
-  static class SymbolHistoryStorageImpl implements SymbolHistoryStorage {
-    static final Map<SymbolMajorCategory, StorageType> STORAGE_TYPE_MAP;
+  public static class SymbolHistoryStorageImpl implements SymbolHistoryStorage {
+    static final Map<SymbolMajorCategory, String> STORAGE_KEY_MAP;
     static {
-      Map<SymbolMajorCategory, StorageType> map =
-          new EnumMap<SymbolMajorCategory, StorageType>(SymbolMajorCategory.class);
-      map.put(SymbolMajorCategory.SYMBOL, StorageType.SYMBOL_HISTORY);
-      map.put(SymbolMajorCategory.EMOTICON, StorageType.EMOTICON_HISTORY);
-      map.put(SymbolMajorCategory.EMOJI, StorageType.EMOJI_HISTORY);
-      STORAGE_TYPE_MAP = Collections.unmodifiableMap(map);
+      Map<SymbolMajorCategory, String> map =
+          new EnumMap<SymbolMajorCategory, String>(SymbolMajorCategory.class);
+      map.put(SymbolMajorCategory.SYMBOL, "symbol_history_symbol");
+      map.put(SymbolMajorCategory.EMOTICON, "symbol_history_emoticon");
+      map.put(SymbolMajorCategory.EMOJI, "symbol_history_emoji");
+      STORAGE_KEY_MAP = Collections.unmodifiableMap(map);
     }
 
-    private final SessionExecutor sessionExecutor;
+    private static final int MAX_HISTORY_SIZE = 50;
 
-    SymbolHistoryStorageImpl(SessionExecutor sessionExecutor) {
-      this.sessionExecutor = sessionExecutor;
+    @Nullable
+    private final SharedPreferences sharedPreferences;
+
+    SymbolHistoryStorageImpl(@Nullable SharedPreferences sharedPreferences) {
+      this.sharedPreferences = sharedPreferences;
+    }
+
+    private static String storageKey(SymbolMajorCategory majorCategory) {
+      return STORAGE_KEY_MAP.get(majorCategory);
     }
 
     @Override
     public List<String> getAllHistory(SymbolMajorCategory majorCategory) {
-      List<ByteString> historyList =
-          sessionExecutor.readAllFromStorage(STORAGE_TYPE_MAP.get(majorCategory));
-      List<String> result = new ArrayList<String>(historyList.size());
-      for (ByteString value : historyList) {
-        result.add(MozcUtil.utf8CStyleByteStringToString(value));
+      Preconditions.checkNotNull(majorCategory);
+      if (sharedPreferences == null) {
+        return Collections.emptyList();
+      }
+      String encoded = sharedPreferences.getString(storageKey(majorCategory), "");
+      if (encoded.isEmpty()) {
+        return Collections.emptyList();
+      }
+      List<String> result = new ArrayList<String>();
+      for (String value : encoded.split("\n")) {
+        if (!value.isEmpty()) {
+          result.add(value);
+        }
       }
       return result;
     }
@@ -216,10 +229,32 @@ public class MozcBaseService extends InputMethodService {
     public void addHistory(SymbolMajorCategory majorCategory, String value) {
       Preconditions.checkNotNull(majorCategory);
       Preconditions.checkNotNull(value);
-      sessionExecutor.insertToStorage(
-          STORAGE_TYPE_MAP.get(majorCategory),
-          value,
-          Collections.singletonList(ByteString.copyFromUtf8(value)));
+      if (sharedPreferences == null) {
+        return;
+      }
+      List<String> history = new ArrayList<String>(getAllHistory(majorCategory));
+      history.remove(value);
+      history.add(0, value);
+      while (history.size() > MAX_HISTORY_SIZE) {
+        history.remove(history.size() - 1);
+      }
+      StringBuilder builder = new StringBuilder();
+      for (String v : history) {
+        if (builder.length() > 0) {
+          builder.append('\n');
+        }
+        builder.append(v);
+      }
+      sharedPreferences.edit().putString(storageKey(majorCategory), builder.toString()).apply();
+    }
+
+    /** Clears the given {@code majorCategory} history. */
+    public static void clear(@Nullable SharedPreferences sharedPreferences,
+        SymbolMajorCategory majorCategory) {
+      if (sharedPreferences == null) {
+        return;
+      }
+      sharedPreferences.edit().remove(STORAGE_KEY_MAP.get(majorCategory)).apply();
     }
   }
 
@@ -530,7 +565,7 @@ public class MozcBaseService extends InputMethodService {
       Preconditions.checkArgument(Preconditions.checkNotNull(command).isPresent());
       Preconditions.checkNotNull(triggeringKeyEvent);
       if (command.get().getInput().getCommand().getType()
-          != SessionCommand.CommandType.EXPAND_SUGGESTION) {
+          != SessionCommand.CommandType.NONE) {
         // For expanding suggestions, we don't need to update our rendering result.
         renderInputConnection(command.get(), triggeringKeyEvent.orNull());
       }
@@ -852,10 +887,10 @@ public class MozcBaseService extends InputMethodService {
     if (viewManager == null) {
       return;
     }
-    ProtoCandidates.CandidateList.Builder candidates = ProtoCandidates.CandidateList.newBuilder()
-        .setCategory(ProtoCandidates.Category.SUGGESTION);
+    ProtoCandidateWindow.CandidateList.Builder candidates = ProtoCandidateWindow.CandidateList.newBuilder()
+        .setCategory(ProtoCandidateWindow.Category.SUGGESTION);
     for (int i = 0; i < words.size(); i++) {
-      candidates.addCandidates(ProtoCandidates.CandidateWord.newBuilder()
+      candidates.addCandidates(ProtoCandidateWindow.CandidateWord.newBuilder()
           .setId(i)
           .setValue(words.get(i)));
     }
@@ -868,7 +903,7 @@ public class MozcBaseService extends InputMethodService {
       // updateForExpandSuggestion path and keeps its expanded (keyboard-folded) state.
       input.setType(CommandType.SEND_COMMAND)
           .setCommand(SessionCommand.newBuilder()
-              .setType(SessionCommand.CommandType.EXPAND_SUGGESTION));
+              .setType(SessionCommand.CommandType.NONE));
     }
     Command command = Command.newBuilder()
         .setInput(input)
@@ -1050,7 +1085,7 @@ public class MozcBaseService extends InputMethodService {
     // TODO(hidehiko): Split following methods by functionalities to improve test coverage and
     //   test stableness.
     this.sessionExecutor = sessionExecutor;
-    this.symbolHistoryStorage = new SymbolHistoryStorageImpl(sessionExecutor);
+    this.symbolHistoryStorage = new SymbolHistoryStorageImpl(sharedPreferences);
     this.eventListener = eventListener;
     prepareOnce(eventListener, symbolHistoryStorage, viewManager, sharedPreferences);
     prepareEveryTime(sharedPreferences, deviceConfiguration);
@@ -1952,7 +1987,7 @@ public class MozcBaseService extends InputMethodService {
       // is SWITCH_INPUT_MODE.
       Input input = command.getInput();
       if (input.getType() != Input.CommandType.SEND_COMMAND
-          || input.getCommand().getType() != SessionCommand.CommandType.SWITCH_INPUT_MODE) {
+          || input.getCommand().getType() != SessionCommand.CommandType.SWITCH_COMPOSITION_MODE) {
         if (!inputConnection.setComposingText("", 0)) {
           MozcLog.e("Failed to set composing text.");
         }
@@ -1976,7 +2011,7 @@ public class MozcBaseService extends InputMethodService {
     int spanFlags = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE | Spanned.SPAN_COMPOSING;
     if (output.hasAllCandidateWords()
         && output.getAllCandidateWords().hasCategory()
-        && output.getAllCandidateWords().getCategory() == ProtoCandidates.Category.CONVERSION) {
+        && output.getAllCandidateWords().getCategory() == ProtoCandidateWindow.Category.CONVERSION) {
       int offsetInString = 0;
       for (Segment segment : preedit.getSegmentList()) {
         int length = segment.getValue().length();

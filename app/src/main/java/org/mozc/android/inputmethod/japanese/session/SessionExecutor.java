@@ -38,8 +38,6 @@ import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Capability.T
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Command;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.CompositionMode;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Context.InputFieldType;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.GenericStorageEntry;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.GenericStorageEntry.StorageType;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input.CommandType;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input.TouchEvent;
@@ -49,12 +47,9 @@ import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Output;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Request;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.SessionCommand;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoConfig.Config;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommand;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommandStatus;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.protobuf.ByteString;
 
 import android.content.Context;
 import android.os.Handler;
@@ -281,14 +276,9 @@ public class SessionExecutor {
             CommandType.NO_OPERATION,
             CommandType.SET_CONFIG,
             CommandType.GET_CONFIG,
-            CommandType.SET_IMPOSED_CONFIG,
             CommandType.CLEAR_USER_HISTORY,
             CommandType.CLEAR_USER_PREDICTION,
-            CommandType.CLEAR_UNUSED_USER_PREDICTION,
-            CommandType.CLEAR_STORAGE,
-            CommandType.READ_ALL_FROM_STORAGE,
-            CommandType.RELOAD,
-            CommandType.SEND_USER_DICTIONARY_COMMAND));
+            CommandType.RELOAD));
 
     private final SessionHandler sessionHandler;
 
@@ -299,6 +289,15 @@ public class SessionExecutor {
 
     // The logging for debugging is disabled by default.
     boolean isLogging = false;
+
+    // The latest evaluation result which contained candidate words. Used to synthesize the
+    // client-side expanded-suggestion rendering, because the engine no longer supports the
+    // EXPAND_SUGGESTION session command.
+    @VisibleForTesting volatile Optional<Command> lastOutput = Optional.absent();
+
+    @VisibleForTesting Optional<Command> getLastOutput() {
+      return lastOutput;
+    }
 
     @VisibleForTesting ExecutorMainCallback(SessionHandler sessionHandler) {
       this.sessionHandler = Preconditions.checkNotNull(sessionHandler);
@@ -350,6 +349,9 @@ public class SessionExecutor {
       Command outCommand = sessionHandler.evalCommand(inCommand);
       if (isLogging) {
         MozcCommandDebugger.outLog(outCommand);
+      }
+      if (outCommand.getOutput().getAllCandidateWords().getCandidatesCount() > 0) {
+        lastOutput = Optional.of(outCommand);
       }
       return outCommand;
     }
@@ -439,7 +441,7 @@ public class SessionExecutor {
       Input.Builder inputBuilder = context.inputBuilder;
       Optional<Handler> callbackHandler = context.callbackHandler;
       if (callbackHandler.isPresent()
-          && inputBuilder.getCommand().getType() != SessionCommand.CommandType.EXPAND_SUGGESTION) {
+          && inputBuilder.getCommand().getType() != SessionCommand.CommandType.NONE) {
         // Do not squash by EXPAND_SUGGESTION request, because the result of EXPAND_SUGGESTION
         // won't affect the inputConnection in MozcService, as the result should update
         // only candidates conceptually.
@@ -683,7 +685,7 @@ public class SessionExecutor {
   }
 
   /**
-   * Sends {@code SWITCH_INPUT_MODE} command to the server asynchronously.
+   * Sends {@code SWITCH_COMPOSITION_MODE} command to the server asynchronously.
    */
   public void switchInputMode(Optional<KeyEventInterface> triggeringKeyEvent, CompositionMode mode,
                               EvaluationCallback callback) {
@@ -693,7 +695,7 @@ public class SessionExecutor {
     Input.Builder inputBuilder = Input.newBuilder()
         .setType(CommandType.SEND_COMMAND)
         .setCommand(SessionCommand.newBuilder()
-            .setType(SessionCommand.CommandType.SWITCH_INPUT_MODE)
+            .setType(SessionCommand.CommandType.SWITCH_COMPOSITION_MODE)
             .setCompositionMode(mode));
     evaluateAsynchronously(inputBuilder, triggeringKeyEvent, Optional.of(callback));
   }
@@ -803,32 +805,27 @@ public class SessionExecutor {
         inputBuilder, Optional.<KeyEventInterface>absent(), Optional.of(callback));
   }
 
-  /**
-   * Sends {@code INSERT_TO_STORAGE} with given {@code type}, {@code key} and {@code values}
-   * to the server asynchronously.
-   */
-  public void insertToStorage(StorageType type, String key, List<ByteString> values) {
-    Preconditions.checkNotNull(type);
-    Preconditions.checkNotNull(key);
-    Preconditions.checkNotNull(values);
-    Input.Builder inputBuilder = Input.newBuilder()
-        .setType(CommandType.INSERT_TO_STORAGE)
-        .setStorageEntry(GenericStorageEntry.newBuilder()
-            .setType(type)
-            .setKey(key)
-            .addAllValue(values));
-    evaluateAsynchronously(
-        inputBuilder, Optional.<KeyEventInterface>absent(), Optional.<EvaluationCallback>absent());
-  }
 
   public void expandSuggestion(EvaluationCallback callback) {
     Preconditions.checkNotNull(callback);
-    Input.Builder inputBuilder = Input.newBuilder()
+    // The mozc server no longer implements EXPAND_SUGGESTION, so the client-side rendering
+    // path is driven directly: re-use the last evaluation result and mark the command with a
+    // client-side marker, so that the view layer takes the expanded candidate-list path.
+    Optional<Command> lastOutput = Optional.<Command>absent();
+    if (mainCallback.isPresent()) {
+      lastOutput = mainCallback.get().getLastOutput();
+    }
+    Input.Builder input = Input.newBuilder()
         .setType(CommandType.SEND_COMMAND)
+        .setRequestSuggestion(true)
         .setCommand(
-            SessionCommand.newBuilder().setType(SessionCommand.CommandType.EXPAND_SUGGESTION));
-    evaluateAsynchronously(
-        inputBuilder, Optional.<KeyEventInterface>absent(), Optional.of(callback));
+            SessionCommand.newBuilder().setType(SessionCommand.CommandType.NONE));
+    Command command = Command.newBuilder()
+        .setInput(input)
+        .setOutput(lastOutput.isPresent() ? lastOutput.get().getOutput()
+            : Output.getDefaultInstance())
+        .build();
+    callback.onCompleted(Optional.of(command), Optional.<KeyEventInterface>absent());
   }
 
   public void syncData() {
@@ -885,16 +882,8 @@ public class SessionExecutor {
     Preconditions.checkNotNull(config);
     // Ignore output.
     evaluateAsynchronously(
-        Input.newBuilder().setType(Input.CommandType.SET_IMPOSED_CONFIG).setConfig(config),
+        Input.newBuilder().setType(Input.CommandType.SET_CONFIG).setConfig(config),
         Optional.<KeyEventInterface>absent(), Optional.<EvaluationCallback>absent());
-  }
-
-  /**
-   * Clears the unused user prediction from the server synchronously.
-   */
-  public void clearUnusedUserPrediction() {
-    evaluateSynchronously(
-        Input.newBuilder().setType(CommandType.CLEAR_UNUSED_USER_PREDICTION).build());
   }
 
   /**
@@ -914,33 +903,6 @@ public class SessionExecutor {
   }
 
   /**
-   * Clears a generic storage, which is used typically by symbol history.
-   * @param storageType the storage to be cleared
-   */
-  public void clearStorage(StorageType storageType) {
-    Preconditions.checkNotNull(storageType);
-    evaluateSynchronously(
-        Input.newBuilder()
-            .setType(CommandType.CLEAR_STORAGE)
-            .setStorageEntry(GenericStorageEntry.newBuilder().setType(storageType))
-            .build());
-  }
-
-  /**
-   * Reads stored values of the given {@code type} from the server, and returns it.
-   */
-  public List<ByteString> readAllFromStorage(StorageType type) {
-    Preconditions.checkNotNull(type);
-    Input input = Input.newBuilder()
-        .setType(CommandType.READ_ALL_FROM_STORAGE)
-        .setStorageEntry(GenericStorageEntry.newBuilder()
-            .setType(type))
-        .build();
-    Output output = evaluateSynchronously(input);
-    return output.getStorageEntry().getValueList();
-  }
-
-  /**
    * Sends 'Reload' request to the server, typically for reloading user dictionaries.
    */
   public void reload() {
@@ -948,18 +910,6 @@ public class SessionExecutor {
     evaluateAsynchronously(
         Input.newBuilder().setType(Input.CommandType.RELOAD), Optional.<KeyEventInterface>absent(),
         Optional.<EvaluationCallback>absent());
-  }
-
-  /**
-   * Sends SEND_USER_DICTIONARY_COMMAND to edit user dictionaries.
-   */
-  public UserDictionaryCommandStatus sendUserDictionaryCommand(UserDictionaryCommand command) {
-    Preconditions.checkNotNull(command);
-    Output output = evaluateSynchronously(Input.newBuilder()
-        .setType(CommandType.SEND_USER_DICTIONARY_COMMAND)
-        .setUserDictionaryCommand(command)
-        .build());
-    return output.getUserDictionaryCommandStatus();
   }
 
   /**

@@ -29,7 +29,7 @@
 
 package org.mozc.android.inputmethod.japanese;
 
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidates.Category;
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidateWindow.Category;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Command;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.CompositionMode;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Output;
@@ -253,7 +253,7 @@ public class FloatingCandidateView extends View {
         currentPreeditPosition += segment.getValueLength();
       }
       compositionCharacterEnd = currentPreeditPosition;
-      candidatesCategory = output.getCandidates().getCategory();
+      candidatesCategory = output.getCandidateWindow().getCategory();
       updateCandidateWindow();
     }
 

@@ -29,7 +29,7 @@
 
 package org.mozc.android.inputmethod.japanese.ui;
 
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidates.CandidateWord;
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidateWindow.CandidateWord;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 

@@ -1,4 +1,4 @@
-// Copyright 2010-2018, Google Inc.
+// Copyright 2010-2021, Google Inc.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,56 +31,72 @@ package org.mozc.android.inputmethod.japanese.userdictionary;
 
 import org.mozc.android.inputmethod.japanese.MozcLog;
 import org.mozc.android.inputmethod.japanese.MozcUtil;
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionary;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionary.Entry;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionary.PosType;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommand;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommand.Builder;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommand.CommandType;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommandStatus;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryCommandStatus.Status;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoUserDictionaryStorage.UserDictionaryStorage;
 import org.mozc.android.inputmethod.japanese.session.SessionExecutor;
+import org.mozc.android.inputmethod.japanese.userdictionary.UserDictionaryStatus.Status;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
+import android.content.Context;
 import android.content.res.Resources;
 import android.net.Uri;
-
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.AbstractList;
+import java.util.Comparator;
+import java.util.Deque;
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 /**
+ * Model for the user dictionary tool.
+ *
+ * <p>The user dictionary storage is kept in an in-memory immutable protobuf
+ * snapshot which is persisted to a file in the app's private directory when
+ * the tool is paused. Validation and limits follow the same rules as the
+ * native user dictionary storage.
  */
 public class UserDictionaryToolModel {
+
+  private static final String STORAGE_FILE_NAME = "user_dictionary.db";
+  private static final int MAX_DICTIONARY_COUNT = 100;
+  private static final int MAX_ENTRY_COUNT = 1000000;
+  private static final int MAX_STRING_SIZE = 300;
+  private static final String INVALID_CHARS = "\n\r\t";
+
+  private final Context applicationContext;
   private final SessionExecutor sessionExecutor;
-  @VisibleForTesting long sessionId;
 
-  /** User dictionary storage which only contains dictionary id / name. */
-  @VisibleForTesting UserDictionaryStorage storage = null;
+  private UserDictionaryStorage storage = UserDictionaryStorage.getDefaultInstance();
+  private long selectedDictionaryId = 0;
+  private String defaultDictionaryName = "";
+  private boolean dirty = false;
+  private int editTargetIndex = 0;
 
-  @VisibleForTesting long selectedDictionaryId = 0;
-
-  // TODO(hidehiko): Move this bit into the server side.
-  @VisibleForTesting boolean dirty = false;
-
-  // Unfortunately our target API level 7 doesn't support to passing any arguments to the dialog.
-  // Thus, as a workaround, we relay the edit target entry's index by this model.
-  private int editTargetIndex;
-
-  // Pending status of import data.
+  // Pending import state.
   private Uri importUri;
   private String importData;
   private ZipFile zipFile;
+
+  // In-memory undo history (immutable protobuf snapshots).
+  private final Deque<UserDictionaryStorage> undoStack = new ArrayDeque<>();
 
   // List "view" by proxying dictionary names in the storage.
   private final List<String> dictionaryNameList = new AbstractList<String>() {
@@ -91,145 +107,100 @@ public class UserDictionaryToolModel {
 
     @Override
     public int size() {
-      return (storage == null) ? 0 : storage.getDictionariesCount();
+      return storage.getDictionariesCount();
     }
   };
 
-  public UserDictionaryToolModel(SessionExecutor sessionExecutor) {
+  public UserDictionaryToolModel(Context applicationContext, SessionExecutor sessionExecutor) {
+    this.applicationContext = applicationContext;
     this.sessionExecutor = sessionExecutor;
   }
 
   /**
-   * Returns {@code true} if the storage is edited after loading.
+   * Returns {@code true} if the storage is changed after the last save.
    */
   public boolean isDirty() {
     return dirty;
   }
 
   /**
-   * Creates a session to communicate with the native server about user dictionary editing.
+   * Creates the model instance by loading the storage from disk.
    * This method should be called before any other methods.
    */
   public void createSession() {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.CREATE_SESSION)
-        .build();
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      throw new IllegalStateException("UserDictionaryCommand session should be created always.");
+    storage = loadStorage();
+    if (storage == null) {
+      storage = UserDictionaryStorage.getDefaultInstance();
     }
-    sessionId = status.getSessionId();
+    selectedDictionaryId = 0;
+    dirty = false;
+    undoStack.clear();
   }
 
   /**
-   * Deletes the current session.
+   * Releases the current session state, saving the storage if necessary.
    */
   public void deleteSession() {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.DELETE_SESSION)
-        .setSessionId(sessionId)
-        .build();
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      MozcLog.e("Failed to delete user dictionary command session.");
+    if (dirty) {
+      saveStorage();
+      dirty = false;
     }
-    sessionId = 0;
   }
 
   /**
-   * Resumes the current session by loading the data from storage,
-   * and updates storage and selected id.
-   * @params defautlDictionaryName the name of the default dictionary, which is created when,
-   *   e.g., LOAD operation is failing, or the storage gets empty because of the deletion of
-   *   the last dictionary.
+   * Loads the storage from the file, and updates both the storage and the selected dictionary.
+   *
+   * @param defaultDictionaryName the name of the default dictionary, which is created when the
+   *   storage is empty.
+   * @return the load status.
    */
   public Status resumeSession(String defaultDictionaryName) {
-    ensureSession();
+    this.defaultDictionaryName = defaultDictionaryName;
 
-    // Set default dictionary name.
-    {
-      UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-          .setType(CommandType.SET_DEFAULT_DICTIONARY_NAME)
-          .setSessionId(sessionId)
-          .setDictionaryName(defaultDictionaryName)
-          .build();
-      // Ignore any errors.
-      sessionExecutor.sendUserDictionaryCommand(command);
-    }
-
-    // Load the dictionary.
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.LOAD)
-        .setSessionId(sessionId)
-        .setEnsureNonEmptyStorage(true)
-        .build();
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-
-    // Update the dictionary list regardless of the result of the LOAD command.
-    // Read new dictionary list.
-    {
-      Status updateStatus = updateStorage();
-      if (updateStatus == Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-        selectedDictionaryId = storage.getDictionaries(0).getId();
+    UserDictionaryStorage loaded = loadStorage();
+    if (loaded == null) {
+      if (getStorageFile().exists()) {
+        // The file exists but could not be parsed.
+        storage = UserDictionaryStorage.getDefaultInstance();
+        selectedDictionaryId = 0;
+        undoStack.clear();
+        return Status.INVALID_FILE_FORMAT;
       }
+      // First time; no storage file so far.
+      storage = UserDictionaryStorage.getDefaultInstance();
+    } else {
+      storage = loaded;
     }
 
-    // Especially on the first time, there are no user dictionary file, so "file not found"
-    // is (a kind of) expected behavior. In order not to show "error" message to users,
-    // ignore the error here.
-    if (status.getStatus() == Status.FILE_NOT_FOUND) {
+    if (storage.getDictionariesCount() == 0) {
+      storage = createDefaultStorage(storage, defaultDictionaryName);
+      selectedDictionaryId = storage.getDictionaries(0).getId();
+      dirty = true;
+      undoStack.clear();
       return Status.USER_DICTIONARY_COMMAND_SUCCESS;
     }
-    return status.getStatus();
-  }
 
-  private void ensureSession() {
-    // First ping to the mozc server.
-    {
-      UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-          .setType(CommandType.NO_OPERATION)
-          .setSessionId(sessionId)
-          .build();
-      UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-      if (status.getStatus() == Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-        return;
-      }
-    }
-
-    // The session is somehow broken. Actually, because of Android architecture,
-    // we can have multiple Activity instances, but due to resource limitation the current
-    // limit of the number of sessions is only 1. So kick the other session out, and recreate
-    // our session again.
-    createSession();
+    selectedDictionaryId = storage.getDictionaries(0).getId();
+    dirty = false;
+    undoStack.clear();
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
   }
 
   /**
-   * Treis to save if necessary, and also tries to reload the server.
+   * Saves the storage if necessary, and reloads the server if the storage was modified.
    */
   public Status pauseSession() {
-    checkSession();
-
-    // Save the dictionary if necessary.
     if (dirty) {
-      UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-          .setType(CommandType.SAVE)
-          .setSessionId(sessionId)
-          .build();
-      UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-      if (status.getStatus() != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-        return status.getStatus();
-      }
-
-      // When the save is succeeded, we need to reload the mozc server.
+      saveStorage();
+      dirty = false;
       sessionExecutor.reload();
     }
-
     return Status.USER_DICTIONARY_COMMAND_SUCCESS;
   }
 
   /**
    * Returns the list "view" of dictionary names in the storage.
-   * The contents of the returned instance should be automatically updated when the storage
+   * The contents of the returned instance are updated automatically when the storage
    * is updated.
    */
   public List<String> getDictionaryNameList() {
@@ -240,12 +211,10 @@ public class UserDictionaryToolModel {
    * Sets the current selected dictionary based on the given index.
    */
   public void setSelectedDictionaryByIndex(int index) {
-    if (storage == null || index < 0 || storage.getDictionariesCount() <= index) {
-      // Invalid state.
+    if (index < 0 || storage.getDictionariesCount() <= index) {
       selectedDictionaryId = 0;
       return;
     }
-
     selectedDictionaryId = storage.getDictionaries(index).getId();
   }
 
@@ -254,10 +223,7 @@ public class UserDictionaryToolModel {
    */
   public int getSelectedDictionaryIndex() {
     int index = getSelectedDictionaryIndexInternal();
-    if (index < 0) {
-      return 0;
-    }
-    return index;
+    return index < 0 ? 0 : index;
   }
 
   /**
@@ -265,7 +231,7 @@ public class UserDictionaryToolModel {
    */
   public String getSelectedDictionaryName() {
     int index = getSelectedDictionaryIndexInternal();
-    if (index < -1) {
+    if (index < 0) {
       return null;
     }
     return storage.getDictionaries(index).getName();
@@ -279,145 +245,136 @@ public class UserDictionaryToolModel {
         }
       }
     }
-
-    // Not found.
     return -1;
   }
 
-  private void checkSession() {
-    if (sessionId == 0) {
-      throw new IllegalStateException("Session is not yet created.");
-    }
-  }
-
   /**
-   * Checks if we can add another dictionary to the storage.
+   * Checks if a new dictionary can be added to the storage.
    */
   public Status checkNewDictionaryAvailability() {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.CHECK_NEW_DICTIONARY_AVAILABILITY)
-        .setSessionId(sessionId)
-        .build();
-    return sessionExecutor.sendUserDictionaryCommand(command).getStatus();
-  }
-
-  public Status checkUndoability() {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.CHECK_UNDOABILITY)
-        .setSessionId(sessionId)
-        .build();
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-    return status.getStatus();
-  }
-
-  public Status undo() {
-    int index = getSelectedDictionaryIndex();
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.UNDO)
-        .setSessionId(sessionId)
-        .build();
-
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() == Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      dirty = true;
-
-      Status updateStatus = updateStorage();
-      if (updateStatus != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-        return updateStatus;
-      }
-
-      boolean found = false;
-      for (int i = 0; i < storage.getDictionariesCount(); ++i) {
-        if (storage.getDictionaries(i).getId() == selectedDictionaryId) {
-          found = true;
-          break;
-        }
-      }
-
-      if (!found) {
-        setSelectedDictionaryByIndex(Math.min(index, storage.getDictionariesCount() - 1));
-      }
+    if (storage.getDictionariesCount() >= MAX_DICTIONARY_COUNT) {
+      return Status.DICTIONARY_SIZE_LIMIT_EXCEEDED;
     }
-
-    return status.getStatus();
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
   }
 
   /**
-   * Creates a new empty dictionary with the given dictionary name.
-   * Also update the selected dictionary to the created one.
+   * Checks if there is an undo history to replay.
+   */
+  public Status checkUndoability() {
+    return undoStack.isEmpty() ? Status.NO_UNDO_HISTORY : Status.USER_DICTIONARY_COMMAND_SUCCESS;
+  }
+
+  /**
+   * Restores the storage to the state before the last change.
+   */
+  public Status undo() {
+    if (undoStack.isEmpty()) {
+      return Status.NO_UNDO_HISTORY;
+    }
+    int index = getSelectedDictionaryIndex();
+    storage = undoStack.pop();
+    dirty = true;
+
+    boolean found = false;
+    for (int i = 0; i < storage.getDictionariesCount(); ++i) {
+      if (storage.getDictionaries(i).getId() == selectedDictionaryId) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      setSelectedDictionaryByIndex(Math.min(index, storage.getDictionariesCount() - 1));
+    }
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
+  }
+
+  /**
+   * Creates a new empty dictionary with the given name and selects it.
    */
   public Status createDictionary(String dictionaryName) {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.CREATE_DICTIONARY)
-        .setSessionId(sessionId)
-        .setDictionaryName(dictionaryName)
-        .build();
-    UserDictionaryCommandStatus status =
-        sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() == Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      dirty = true;
-
-      Status updateStatus = updateStorage();
-      if (updateStatus != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-        return updateStatus;
-      }
-      selectedDictionaryId = status.getDictionaryId();
+    Status status = validateDictionaryName(dictionaryName, -1);
+    if (status != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
+      return status;
     }
-    return status.getStatus();
+    if (storage.getDictionariesCount() >= MAX_DICTIONARY_COUNT) {
+      return Status.DICTIONARY_SIZE_LIMIT_EXCEEDED;
+    }
+
+    UserDictionary dictionary = UserDictionary.newBuilder()
+        .setId(generateNewDictionaryId())
+        .setName(dictionaryName)
+        .build();
+
+    pushUndo();
+    storage = storage.toBuilder().addDictionaries(dictionary).build();
+    selectedDictionaryId = dictionary.getId();
+    dirty = true;
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
   }
 
   /**
-   * Renames the currently selected dictionary to the given dictionary name.
+   * Renames the currently selected dictionary to the given name.
    */
   public Status renameSelectedDictionary(String dictionaryName) {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.RENAME_DICTIONARY)
-        .setSessionId(sessionId)
-        .setDictionaryId(selectedDictionaryId)
-        .setDictionaryName(dictionaryName)
-        .build();
-    UserDictionaryCommandStatus status =
-        sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() == Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      dirty = true;
-      Status updateStatus = updateStorage();
-      if (updateStatus != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-        return updateStatus;
-      }
+    int index = getSelectedDictionaryIndexInternal();
+    if (index < 0) {
+      return Status.UNKNOWN_DICTIONARY_ID;
     }
-    return status.getStatus();
+    String currentName = storage.getDictionaries(index).getName();
+    if (currentName.equals(dictionaryName)) {
+      return Status.USER_DICTIONARY_COMMAND_SUCCESS;
+    }
+
+    Status status = validateDictionaryName(dictionaryName, index);
+    if (status != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
+      return status;
+    }
+
+    pushUndo();
+    UserDictionary updated = storage.getDictionaries(index).toBuilder()
+        .setName(dictionaryName).build();
+    storage = replaceDictionary(index, updated);
+    dirty = true;
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
   }
 
   /**
-   * Deletes the current selected dictionary.
-   * The new selected dictionary should be the "same" position of the dictionaries in the storage.
-   * If the dictionary gets empty, no dictionary is selected.
-   * If the deleted dictionary is at the end of the storage,
-   * the new selected dictionary will be the one at the end of the storage after
-   * deleting operation.
+   * Deletes the currently selected dictionary.
+   * The new selected dictionary is the one at the same position in the storage,
+   * or the last one if the deleted dictionary was the last one.
+   * If the storage would become empty, a new default dictionary is created.
    */
   public Status deleteSelectedDictionary() {
-    int index = getSelectedDictionaryIndex();
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.DELETE_DICTIONARY)
-        .setSessionId(sessionId)
-        .setDictionaryId(selectedDictionaryId)
-        .setEnsureNonEmptyStorage(true)
-        .build();
-    UserDictionaryCommandStatus status =
-        sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() == Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      dirty = true;
-      Status updateStatus = updateStorage();
-      if (updateStatus != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-        return updateStatus;
-      }
-      selectedDictionaryId =
-          storage.getDictionaries(Math.min(index, storage.getDictionariesCount() - 1)).getId();
+    int index = getSelectedDictionaryIndexInternal();
+    if (index < 0) {
+      return Status.UNKNOWN_DICTIONARY_ID;
     }
-    return status.getStatus();
+
+    pushUndo();
+
+    List<UserDictionary> dictionaries = new ArrayList<UserDictionary>();
+    for (int i = 0; i < storage.getDictionariesCount(); ++i) {
+      if (i != index) {
+        dictionaries.add(storage.getDictionaries(i));
+      }
+    }
+    storage = createStorageFromDictionaries(dictionaries);
+
+    if (storage.getDictionariesCount() == 0) {
+      storage = createDefaultStorage(storage, defaultDictionaryName);
+    }
+
+    selectedDictionaryId = storage.getDictionaries(
+        Math.min(index, storage.getDictionariesCount() - 1)).getId();
+    dirty = true;
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
   }
 
+  /**
+   * Creates a zip file containing the export of the currently selected dictionary,
+   * named {@code dictionaryName}. The file is created in {@code tempDirectory}.
+   */
   public Optional<File> createExportFile(
       Resources resources, String dictionaryName, File tempDirectory) {
     Preconditions.checkNotNull(resources);
@@ -447,7 +404,7 @@ public class UserDictionaryToolModel {
       zipStream.close();
     } catch (IOException e) {
       MozcLog.e("Failed to prepare export data. " + e.getMessage());
-      if (zipStream != null){
+      if (zipStream != null) {
         MozcUtil.closeIgnoringIOException(zipStream);
       }
       if (exportFile != null) {
@@ -459,7 +416,7 @@ public class UserDictionaryToolModel {
   }
 
   /**
-   * Dump dictionary entries of which the index is in [beginIndex, endIndex) as string.
+   * Dumps the dictionary entries in [beginIndex, endIndex) as string.
    */
   private String getSelectedDictionaryAsString(Resources resources, int beginIndex, int endIndex) {
     int entrySize = getEntrySize();
@@ -488,25 +445,10 @@ public class UserDictionaryToolModel {
     return builder.toString();
   }
 
-  private Status updateStorage() {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.GET_USER_DICTIONARY_NAME_LIST)
-        .setSessionId(sessionId)
-        .build();
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() == Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      storage = status.getStorage();
-    } else {
-      MozcLog.e("Failed to get dictionary name list: " + status.getStatus());
-    }
-    return status.getStatus();
-  }
-
-
   /**
-   * Returns the list "view" of entries in the current selected dictionary.
-   * The contents of the returned instance should be automatically updated when the selected
-   * dictionary is updated.
+   * Returns the list "view" of entries in the currently selected dictionary.
+   * The contents of the returned instance are updated automatically when the storage
+   * is updated.
    */
   public List<Entry> getEntryList() {
     return new AbstractList<Entry>() {
@@ -531,27 +473,18 @@ public class UserDictionaryToolModel {
   }
 
   /**
-   * Returns the entry at current editTargetIndex in the selected dictionary.
+   * Returns the entry at the current edit target index in the selected dictionary.
    */
   public Entry getEditTargetEntry() {
     return getEntryInternal(editTargetIndex);
   }
 
   private int getEntrySize() {
-    if (selectedDictionaryId == 0) {
+    int index = getSelectedDictionaryIndexInternal();
+    if (index < 0) {
       return 0;
     }
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.GET_ENTRY_SIZE)
-        .setSessionId(sessionId)
-        .setDictionaryId(selectedDictionaryId)
-        .build();
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      MozcLog.e("Unknown failure: " + status.getStatus());
-      throw new RuntimeException("Unknown failure");
-    }
-    return status.getEntrySize();
+    return storage.getDictionaries(index).getEntriesCount();
   }
 
   private Entry getEntryInternal(int index) {
@@ -562,89 +495,140 @@ public class UserDictionaryToolModel {
    * Returns dictionary entries of which the index is in [beginIndex, endIndex).
    */
   private List<Entry> getEntriesInternal(int beginIndex, int endIndex) {
-    Builder builder = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.GET_ENTRIES)
-        .setSessionId(sessionId)
-        .setDictionaryId(selectedDictionaryId);
-    for (int i = beginIndex; i < endIndex; ++i) {
-        builder.addEntryIndex(i);
+    int index = getSelectedDictionaryIndexInternal();
+    if (index < 0) {
+      return new ArrayList<Entry>();
     }
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(builder.build());
-    if (status.getStatus() != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      MozcLog.e("Unknown failure: " + status.getStatus());
-      throw new RuntimeException("Unknown failure");
+    UserDictionary dictionary = storage.getDictionaries(index);
+    int size = dictionary.getEntriesCount();
+    int actualBegin = Math.max(0, beginIndex);
+    int actualEnd = Math.min(size, Math.max(actualBegin, endIndex));
+    List<Entry> result = new ArrayList<Entry>();
+    for (int i = actualBegin; i < actualEnd; ++i) {
+      result.add(dictionary.getEntries(i));
     }
-    return status.getEntriesList();
+    return result;
   }
 
   /**
-   * Checks if we can add another entry to the selected dictionary.
+   * Checks if a new entry can be added to the selected dictionary.
    */
   public Status checkNewEntryAvailability() {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.CHECK_NEW_ENTRY_AVAILABILITY)
-        .setSessionId(sessionId)
-        .setDictionaryId(selectedDictionaryId)
-        .build();
-    return sessionExecutor.sendUserDictionaryCommand(command).getStatus();
+    int index = getSelectedDictionaryIndexInternal();
+    if (index < 0) {
+      return Status.UNKNOWN_DICTIONARY_ID;
+    }
+    if (storage.getDictionaries(index).getEntriesCount() >= MAX_ENTRY_COUNT) {
+      return Status.ENTRY_SIZE_LIMIT_EXCEEDED;
+    }
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
   }
 
   /**
    * Adds an entry to the selected dictionary.
    */
   public Status addEntry(String word, String reading, PosType pos) {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.ADD_ENTRY)
-        .setSessionId(sessionId)
-        .setDictionaryId(selectedDictionaryId)
-        .setEntry(Entry.newBuilder()
-            .setKey(reading)
-            .setValue(word)
-            .setPos(pos))
-        .build();
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() == Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      dirty = true;
+    String normalizedReading = normalizeReading(reading);
+    Status status = validateEntryFields(normalizedReading, word, null);
+    if (status != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
+      return status;
     }
-    return status.getStatus();
+    int index = getSelectedDictionaryIndexInternal();
+    if (index < 0) {
+      return Status.UNKNOWN_DICTIONARY_ID;
+    }
+    UserDictionary dictionary = storage.getDictionaries(index);
+    if (dictionary.getEntriesCount() >= MAX_ENTRY_COUNT) {
+      return Status.ENTRY_SIZE_LIMIT_EXCEEDED;
+    }
+
+    Entry entry = Entry.newBuilder()
+        .setKey(normalizedReading)
+        .setValue(word)
+        .setPos(pos)
+        .build();
+
+    pushUndo();
+    UserDictionary updated = dictionary.toBuilder().addEntries(entry).build();
+    storage = replaceDictionary(index, updated);
+    dirty = true;
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
   }
 
   /**
-   * Edits the entry, which is specified by editTargetIndex, in the selected dictionary.
+   * Edits the entry at the current edit target index in the selected dictionary.
    */
   public Status editEntry(String word, String reading, PosType pos) {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.EDIT_ENTRY)
-        .setSessionId(sessionId)
-        .setDictionaryId(selectedDictionaryId)
-        .addEntryIndex(editTargetIndex)
-        .setEntry(Entry.newBuilder()
-            .setKey(reading)
-            .setValue(word)
-            .setPos(pos))
-        .build();
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() == Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      dirty = true;
+    String normalizedReading = normalizeReading(reading);
+    Status status = validateEntryFields(normalizedReading, word, null);
+    if (status != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
+      return status;
     }
-    return status.getStatus();
+    int index = getSelectedDictionaryIndexInternal();
+    if (index < 0) {
+      return Status.UNKNOWN_DICTIONARY_ID;
+    }
+    UserDictionary dictionary = storage.getDictionaries(index);
+    int target = editTargetIndex;
+    if (target < 0 || target >= dictionary.getEntriesCount()) {
+      return Status.ENTRY_INDEX_OUT_OF_RANGE;
+    }
+
+    Entry entry = Entry.newBuilder()
+        .setKey(normalizedReading)
+        .setValue(word)
+        .setPos(pos)
+        .build();
+
+    pushUndo();
+    UserDictionary updated = dictionary.toBuilder().setEntries(target, entry).build();
+    storage = replaceDictionary(index, updated);
+    dirty = true;
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
   }
 
   /**
-   * Deletes the entries specified by the given {@code indexList} in the selected dictionary.
+   * Deletes the entries specified by the given indices in the selected dictionary.
    */
   public Status deleteEntry(List<Integer> indexList) {
-    UserDictionaryCommand command = UserDictionaryCommand.newBuilder()
-        .setType(CommandType.DELETE_ENTRY)
-        .setSessionId(sessionId)
-        .setDictionaryId(selectedDictionaryId)
-        .addAllEntryIndex(indexList)
-        .build();
-    UserDictionaryCommandStatus status = sessionExecutor.sendUserDictionaryCommand(command);
-    if (status.getStatus() == Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-      dirty = true;
+    int index = getSelectedDictionaryIndexInternal();
+    if (index < 0) {
+      return Status.UNKNOWN_DICTIONARY_ID;
     }
-    return status.getStatus();
+    UserDictionary dictionary = storage.getDictionaries(index);
+    int size = dictionary.getEntriesCount();
+
+    if (indexList == null || indexList.isEmpty()) {
+      return Status.INVALID_ARGUMENT;
+    }
+
+    List<Integer> sorted = new ArrayList<Integer>();
+    for (Integer i : new HashSet<Integer>(indexList)) {
+      if (i == null || i < 0 || i >= size) {
+        return Status.ENTRY_INDEX_OUT_OF_RANGE;
+      }
+      sorted.add(i.intValue());
+    }
+    // Delete from the highest index down to avoid index shifting.
+    sorted.sort(new Comparator<Integer>() {
+      @Override
+      public int compare(Integer a, Integer b) {
+        return b.intValue() - a.intValue();
+      }
+    });
+
+    List<Entry> entries = new ArrayList<Entry>(dictionary.getEntriesList());
+    pushUndo();
+    for (Integer i : sorted) {
+      entries.remove(i.intValue());
+    }
+    UserDictionary updated = dictionary.toBuilder().clearEntries().build();
+    for (Entry e : entries) {
+      updated = updated.toBuilder().addEntries(e).build();
+    }
+    storage = replaceDictionary(index, updated);
+    dirty = true;
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
   }
 
   public Uri getImportUri() {
@@ -675,7 +659,7 @@ public class UserDictionaryToolModel {
 
   /**
    * By the method, this instance takes the ownership of resource management of {@code zipFile}.
-   * (i.e., it must not to invoke close for the zipFile by the caller).
+   * (i.e., it must not invoke close for the zipFile by the caller).
    */
   public void setZipFile(ZipFile zipFile) {
     clearZipFile();
@@ -684,8 +668,7 @@ public class UserDictionaryToolModel {
 
   /**
    * By the method, this instance releases the ownership of resource management of the
-   * current ZipFile. I.e., the caller needs to invoke close method if the returned ZipFile
-   * instance.
+   * current ZipFile. I.e., the caller needs to invoke close method on the returned ZipFile.
    */
   public ZipFile releaseZipFile() {
     ZipFile zipFile = this.zipFile;
@@ -701,49 +684,538 @@ public class UserDictionaryToolModel {
   }
 
   /**
-   * Invokes to import the data into a dictionary.
-   * After all operations, regardless of whether the operation is successfully done or not,
+   * Imports the pending import data into a dictionary.
+   * After the operation, regardless of whether it is successful or not,
    * resets the pending import state.
-   * @param dictionaryIndex is a position of the import destination dictionary in the storage.
-   *   if it is set to -1, this method tries to create a new dictionary with guessing a
-   *   dictionary name.
+   *
+   * @param dictionaryIndex the position of the import destination dictionary in the storage.
+   *   If it is set to -1, a new dictionary is created with the name guessed from the import
+   *   uri.
    */
   public Status importData(int dictionaryIndex) {
     try {
-      // Both importData and importUri should be set before this method's invocation.
       if (importData == null || importUri == null) {
         throw new NullPointerException();
       }
 
-      UserDictionaryCommand.Builder builder = UserDictionaryCommand.newBuilder()
-          .setType(CommandType.IMPORT_DATA)
-          .setSessionId(sessionId)
-          .setData(importData);
       if (dictionaryIndex < 0) {
-        builder.setDictionaryName(
-            UserDictionaryUtil.generateDictionaryNameByUri(importUri, dictionaryNameList));
+        String name = UserDictionaryUtil.generateDictionaryNameByUri(importUri, getDictionaryNameList());
+        return importDataInternal(-1, name, importData);
       } else {
-        builder.setDictionaryId(storage.getDictionaries(dictionaryIndex).getId());
-      }
-
-      UserDictionaryCommandStatus status =
-          sessionExecutor.sendUserDictionaryCommand(builder.build());
-
-      // Regardless of the status, set dirty flag to be conservative,
-      // because even if the status is not SUCCESS, some entries might be imported.
-      dirty = true;
-      if (status.hasDictionaryId()) {
-        // Update the view.
-        Status updateStatus = updateStorage();
-        if (updateStatus != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
-          return updateStatus;
+        if (dictionaryIndex >= storage.getDictionariesCount()) {
+          return Status.UNKNOWN_DICTIONARY_ID;
         }
-        selectedDictionaryId = status.getDictionaryId();
+        return importDataInternal(dictionaryIndex, null, importData);
       }
-      return status.getStatus();
     } finally {
-      // Reset the importing state regardless of whether the import operation is succeeded or not.
       resetImportState();
     }
+  }
+
+  @VisibleForTesting
+  Status importDataInternal(int dictionaryIndex, String newDictionaryName, String rawData) {
+    Status ret = Status.USER_DICTIONARY_COMMAND_SUCCESS;
+    List<Entry> parsed = new ArrayList<Entry>();
+
+    Map<String, PosType> posMap = posStringMap();
+
+    for (String rawLine : rawData.split("\r?\n")) {
+      String line = rawLine.trim();
+      if (line.isEmpty() || line.startsWith("#")) {
+        continue;
+      }
+      // Mozc TSV: key\tvalue\tpos[:locale][\tcomment]
+      String[] parts = line.split("\t", -1);
+      if (parts.length < 3) {
+        ret = Status.IMPORT_INVALID_ENTRIES;
+        continue;
+      }
+
+      String normalizedPos = normalizePos(parts[2]);
+      String locale = "";
+      int colon = normalizedPos.indexOf(':');
+      if (colon >= 0) {
+        locale = normalizedPos.substring(colon + 1).trim();
+        normalizedPos = normalizedPos.substring(0, colon).trim();
+      }
+      PosType pos = posMap.get(normalizedPos);
+      if (pos == null) {
+        ret = Status.IMPORT_INVALID_ENTRIES;
+        continue;
+      }
+
+      String key = normalizeReading(parts[0]);
+      String value = parts[1];
+      String comment = parts.length >= 4 ? parts[3].trim() : "";
+
+      Status entryStatus = validateEntryFields(key, value, comment);
+      if (entryStatus != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
+        ret = Status.IMPORT_INVALID_ENTRIES;
+        continue;
+      }
+
+      Entry.Builder entryBuilder = Entry.newBuilder()
+          .setKey(key)
+          .setValue(value)
+          .setPos(pos);
+      if (!comment.isEmpty()) {
+        entryBuilder.setComment(comment);
+      }
+      if (!locale.isEmpty()) {
+        entryBuilder.setLocale(locale);
+      }
+      parsed.add(entryBuilder.build());
+    }
+
+    // Determine the destination dictionary.
+    boolean isNew = dictionaryIndex < 0;
+    UserDictionary target;
+    if (isNew) {
+      String name = newDictionaryName == null ? "" : newDictionaryName.trim();
+      if (name.isEmpty()) {
+        return Status.DICTIONARY_NAME_EMPTY;
+      }
+      Status nameStatus = validateDictionaryName(name, -1);
+      if (nameStatus != Status.USER_DICTIONARY_COMMAND_SUCCESS) {
+        return nameStatus;
+      }
+      if (storage.getDictionariesCount() >= MAX_DICTIONARY_COUNT) {
+        return Status.DICTIONARY_SIZE_LIMIT_EXCEEDED;
+      }
+      target = UserDictionary.newBuilder()
+          .setId(generateNewDictionaryId())
+          .setName(name)
+          .build();
+    } else {
+      target = storage.getDictionaries(dictionaryIndex);
+    }
+
+    // Deduplicate and apply the entry limit.
+    Set<String> seen = new HashSet<String>();
+    for (int i = 0; i < target.getEntriesCount(); ++i) {
+      Entry e = target.getEntries(i);
+      seen.add(entryMarker(e));
+    }
+    List<Entry> toAdd = new ArrayList<Entry>();
+    int remaining = MAX_ENTRY_COUNT - target.getEntriesCount();
+    for (Entry e : parsed) {
+      if (toAdd.size() >= remaining) {
+        ret = Status.IMPORT_TOO_MANY_WORDS;
+        break;
+      }
+      String marker = entryMarker(e);
+      if (seen.contains(marker)) {
+        continue;
+      }
+      seen.add(marker);
+      toAdd.add(e);
+    }
+
+    if (!isNew && toAdd.isEmpty()) {
+      return ret;
+    }
+
+    // Apply the import.
+    pushUndo();
+    UserDictionary.Builder targetBuilder = target.toBuilder();
+    for (Entry e : toAdd) {
+      targetBuilder.addEntries(e);
+    }
+    UserDictionary updated = targetBuilder.build();
+    if (isNew) {
+      storage = storage.toBuilder().addDictionaries(updated).build();
+      selectedDictionaryId = updated.getId();
+    } else {
+      storage = replaceDictionary(dictionaryIndex, updated);
+    }
+    dirty = true;
+
+    return ret;
+  }
+
+  private String entryMarker(Entry entry) {
+    return entry.getKey() + "\u0001" + entry.getValue() + "\u0001" + entry.getPos().toString();
+  }
+
+  private Map<String, PosType> posStringMap() {
+    // Lazy map from the Japanese export POS strings to the corresponding PosType.
+    // The strings are non-translatable (fixed Japanese).
+    Map<String, PosType> map = new HashMap<String, PosType>();
+    Resources resources = applicationContext.getResources();
+    for (PosType pos : PosType.values()) {
+      int resId = UserDictionaryUtil.getPosStringResourceIdForDictionaryExport(pos);
+      String value = resources.getString(resId);
+      map.put(normalizePos(value), pos);
+    }
+    return map;
+  }
+
+  private UserDictionaryStorage replaceDictionary(int index, UserDictionary dictionary) {
+    UserDictionaryStorage.Builder builder = storage.toBuilder();
+    builder.setDictionaries(index, dictionary);
+    return builder.build();
+  }
+
+  private long generateNewDictionaryId() {
+    long max = 0;
+    for (int i = 0; i < storage.getDictionariesCount(); ++i) {
+      max = Math.max(max, storage.getDictionaries(i).getId());
+    }
+    return max + 1;
+  }
+
+  private UserDictionaryStorage createStorageFromDictionaries(List<UserDictionary> dictionaries) {
+    UserDictionaryStorage.Builder builder = UserDictionaryStorage.newBuilder();
+    for (UserDictionary dict : dictionaries) {
+      builder.addDictionaries(dict);
+    }
+    return builder.build();
+  }
+
+  private UserDictionaryStorage createDefaultStorage(UserDictionaryStorage storage, String name) {
+    UserDictionary dictionary = UserDictionary.newBuilder()
+        .setId(generateNewDictionaryId())
+        .setName(name)
+        .build();
+    return storage.toBuilder().addDictionaries(dictionary).build();
+  }
+
+  private void pushUndo() {
+    undoStack.push(storage);
+  }
+
+  // ------------------------------------------------------------------
+  // Serialization
+  // ------------------------------------------------------------------
+
+  private File getStorageFile() {
+    return new File(applicationContext.getFilesDir(), STORAGE_FILE_NAME);
+  }
+
+  private UserDictionaryStorage loadStorage() {
+    File file = getStorageFile();
+    if (!file.exists()) {
+      return null;
+    }
+    try {
+      ByteArrayOutputStream bos = new ByteArrayOutputStream();
+      FileInputStream fis = new FileInputStream(file);
+      try {
+        byte[] buffer = new byte[65536];
+        int read;
+        while ((read = fis.read(buffer)) != -1) {
+          bos.write(buffer, 0, read);
+        }
+      } finally {
+        MozcUtil.closeIgnoringIOException(fis);
+      }
+      byte[] bytes = bos.toByteArray();
+      if (bytes.length == 0) {
+        return null;
+      }
+      return UserDictionaryStorage.parseFrom(bytes);
+    } catch (Exception e) {
+      MozcLog.e("Failed to load user dictionary storage: " + e.getMessage());
+      return null;
+    }
+  }
+
+  private void saveStorage() {
+    try {
+      File file = getStorageFile();
+      File tmpFile = new File(file.getParentFile(), STORAGE_FILE_NAME + ".tmp");
+      byte[] bytes = storage.toByteArray();
+
+      FileOutputStream fos = new FileOutputStream(tmpFile);
+      try {
+        fos.write(bytes);
+      } finally {
+        MozcUtil.closeIgnoringIOException(fos);
+      }
+
+      if (!tmpFile.renameTo(file)) {
+        throw new IOException("renameTo failed");
+      }
+    } catch (IOException e) {
+      MozcLog.e("Failed to save user dictionary storage: " + e.getMessage());
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Validation & normalization
+  // ------------------------------------------------------------------
+
+  private Status validateDictionaryName(String dictionaryName, int ignoreIndex) {
+    if (dictionaryName == null || dictionaryName.isEmpty()) {
+      return Status.DICTIONARY_NAME_EMPTY;
+    }
+    if (dictionaryName.length() > MAX_STRING_SIZE) {
+      return Status.DICTIONARY_NAME_TOO_LONG;
+    }
+    if (dictionaryName.contains(INVALID_CHARS)) {
+      return Status.DICTIONARY_NAME_CONTAINS_INVALID_CHARACTER;
+    }
+    for (int i = 0; i < storage.getDictionariesCount(); ++i) {
+      if (i == ignoreIndex) continue;
+      if (dictionaryName.equals(storage.getDictionaries(i).getName())) {
+        return Status.DICTIONARY_NAME_DUPLICATED;
+      }
+    }
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
+  }
+
+  private Status validateEntryFields(String reading, String word, String comment) {
+    if (reading == null || reading.isEmpty()) {
+      return Status.READING_EMPTY;
+    }
+    if (reading.length() > MAX_STRING_SIZE) {
+      return Status.READING_TOO_LONG;
+    }
+    if (reading.contains(INVALID_CHARS)) {
+      return Status.READING_CONTAINS_INVALID_CHARACTER;
+    }
+    if (word == null || word.isEmpty()) {
+      return Status.WORD_EMPTY;
+    }
+    if (word.length() > MAX_STRING_SIZE) {
+      return Status.WORD_TOO_LONG;
+    }
+    if (word.contains(INVALID_CHARS)) {
+      return Status.WORD_CONTAINS_INVALID_CHARACTER;
+    }
+    if (comment != null) {
+      if (comment.length() > MAX_STRING_SIZE) {
+        return Status.COMMENT_TOO_LONG;
+      }
+      if (comment.contains(INVALID_CHARS)) {
+        return Status.COMMENT_CONTAINS_INVALID_CHARACTER;
+      }
+    }
+    return Status.USER_DICTIONARY_COMMAND_SUCCESS;
+  }
+
+  private static String normalizeReading(String input) {
+    if (input == null) {
+      return "";
+    }
+    return katakanaToHiragana(halfWidthKatakanaToFullWidthKatakana(
+        fullWidthAsciiToHalfWidthAscii(input)));
+  }
+
+  private static String normalizePos(String input) {
+    if (input == null) {
+      return "";
+    }
+    return halfWidthKatakanaToFullWidthKatakana(fullWidthAsciiToHalfWidthAscii(input));
+  }
+
+  private static String fullWidthAsciiToHalfWidthAscii(String input) {
+    StringBuilder result = new StringBuilder(input.length());
+    for (int i = 0; i < input.length(); ++i) {
+      char c = input.charAt(i);
+      if (c >= 0xFF01 && c <= 0xFF5E) {
+        result.append((char) (c - 0xFEE0));
+      } else {
+        result.append(c);
+      }
+    }
+    return result.toString();
+  }
+
+  private static final Map<String, String> HALFWIDTH_KATAKANA_MAP;
+  static {
+    HALFWIDTH_KATAKANA_MAP = new HashMap<>();
+        HALFWIDTH_KATAKANA_MAP.put("｡", "。");
+        HALFWIDTH_KATAKANA_MAP.put("ﾞ", "゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾟ", "゜");
+        HALFWIDTH_KATAKANA_MAP.put("｢", "「");
+        HALFWIDTH_KATAKANA_MAP.put("｣", "」");
+        HALFWIDTH_KATAKANA_MAP.put("､", "、");
+        HALFWIDTH_KATAKANA_MAP.put("･", "・");
+        HALFWIDTH_KATAKANA_MAP.put("ｦ", "ヲ");
+        HALFWIDTH_KATAKANA_MAP.put("ｧ", "ァ");
+        HALFWIDTH_KATAKANA_MAP.put("ｨ", "ィ");
+        HALFWIDTH_KATAKANA_MAP.put("ｩ", "ゥ");
+        HALFWIDTH_KATAKANA_MAP.put("ｪ", "ェ");
+        HALFWIDTH_KATAKANA_MAP.put("ｫ", "ォ");
+        HALFWIDTH_KATAKANA_MAP.put("ｬ", "ャ");
+        HALFWIDTH_KATAKANA_MAP.put("ｭ", "ュ");
+        HALFWIDTH_KATAKANA_MAP.put("ｮ", "ョ");
+        HALFWIDTH_KATAKANA_MAP.put("ｯ", "ッ");
+        HALFWIDTH_KATAKANA_MAP.put("ｰ", "ー");
+        HALFWIDTH_KATAKANA_MAP.put("ｱ", "ア");
+        HALFWIDTH_KATAKANA_MAP.put("ｱﾞ", "ア゛");
+        HALFWIDTH_KATAKANA_MAP.put("ｱﾟ", "ア゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｲ", "イ");
+        HALFWIDTH_KATAKANA_MAP.put("ｲﾞ", "イ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ｲﾟ", "イ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｳ", "ウ");
+        HALFWIDTH_KATAKANA_MAP.put("ｳﾞ", "ヴ");
+        HALFWIDTH_KATAKANA_MAP.put("ｳﾟ", "ウ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｴ", "エ");
+        HALFWIDTH_KATAKANA_MAP.put("ｴﾞ", "エ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ｴﾟ", "エ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｵ", "オ");
+        HALFWIDTH_KATAKANA_MAP.put("ｵﾞ", "オ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ｵﾟ", "オ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｶ", "カ");
+        HALFWIDTH_KATAKANA_MAP.put("ｶﾞ", "ガ");
+        HALFWIDTH_KATAKANA_MAP.put("ｶﾟ", "カ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｷ", "キ");
+        HALFWIDTH_KATAKANA_MAP.put("ｷﾞ", "ギ");
+        HALFWIDTH_KATAKANA_MAP.put("ｷﾟ", "キ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｸ", "ク");
+        HALFWIDTH_KATAKANA_MAP.put("ｸﾞ", "グ");
+        HALFWIDTH_KATAKANA_MAP.put("ｸﾟ", "ク゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｹ", "ケ");
+        HALFWIDTH_KATAKANA_MAP.put("ｹﾞ", "ゲ");
+        HALFWIDTH_KATAKANA_MAP.put("ｹﾟ", "ケ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｺ", "コ");
+        HALFWIDTH_KATAKANA_MAP.put("ｺﾞ", "ゴ");
+        HALFWIDTH_KATAKANA_MAP.put("ｺﾟ", "コ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｻ", "サ");
+        HALFWIDTH_KATAKANA_MAP.put("ｻﾞ", "ザ");
+        HALFWIDTH_KATAKANA_MAP.put("ｻﾟ", "サ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｼ", "シ");
+        HALFWIDTH_KATAKANA_MAP.put("ｼﾞ", "ジ");
+        HALFWIDTH_KATAKANA_MAP.put("ｼﾟ", "シ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｽ", "ス");
+        HALFWIDTH_KATAKANA_MAP.put("ｽﾞ", "ズ");
+        HALFWIDTH_KATAKANA_MAP.put("ｽﾟ", "ス゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｾ", "セ");
+        HALFWIDTH_KATAKANA_MAP.put("ｾﾞ", "ゼ");
+        HALFWIDTH_KATAKANA_MAP.put("ｾﾟ", "セ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ｿ", "ソ");
+        HALFWIDTH_KATAKANA_MAP.put("ｿﾞ", "ゾ");
+        HALFWIDTH_KATAKANA_MAP.put("ｿﾟ", "ソ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾀ", "タ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾀﾞ", "ダ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾀﾟ", "タ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾁ", "チ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾁﾞ", "ヂ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾁﾟ", "チ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾂ", "ツ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾂﾞ", "ヅ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾂﾟ", "ツ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾃ", "テ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾃﾞ", "デ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾃﾟ", "テ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾄ", "ト");
+        HALFWIDTH_KATAKANA_MAP.put("ﾄﾞ", "ド");
+        HALFWIDTH_KATAKANA_MAP.put("ﾄﾟ", "ト゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾅ", "ナ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾅﾞ", "ナ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾅﾟ", "ナ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾆ", "ニ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾆﾞ", "ニ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾆﾟ", "ニ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾇ", "ヌ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾇﾞ", "ヌ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾇﾟ", "ヌ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾈ", "ネ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾈﾞ", "ネ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾈﾟ", "ネ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾉ", "ノ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾉﾞ", "ノ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾉﾟ", "ノ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾊ", "ハ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾊﾞ", "バ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾊﾟ", "パ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾋ", "ヒ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾋﾞ", "ビ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾋﾟ", "ピ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾌ", "フ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾌﾞ", "ブ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾌﾟ", "プ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾍ", "ヘ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾍﾞ", "ベ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾍﾟ", "ペ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾎ", "ホ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾎﾞ", "ボ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾎﾟ", "ポ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾏ", "マ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾏﾞ", "マ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾏﾟ", "マ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾐ", "ミ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾐﾞ", "ミ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾐﾟ", "ミ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾑ", "ム");
+        HALFWIDTH_KATAKANA_MAP.put("ﾑﾞ", "ム゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾑﾟ", "ム゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾒ", "メ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾒﾞ", "メ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾒﾟ", "メ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾓ", "モ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾓﾞ", "モ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾓﾟ", "モ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾔ", "ヤ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾔﾞ", "ヤ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾔﾟ", "ヤ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾕ", "ユ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾕﾞ", "ユ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾕﾟ", "ユ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾖ", "ヨ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾖﾞ", "ヨ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾖﾟ", "ヨ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾗ", "ラ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾗﾞ", "ラ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾗﾟ", "ラ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾘ", "リ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾘﾞ", "リ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾘﾟ", "リ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾙ", "ル");
+        HALFWIDTH_KATAKANA_MAP.put("ﾙﾞ", "ル゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾙﾟ", "ル゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾚ", "レ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾚﾞ", "レ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾚﾟ", "レ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾛ", "ロ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾛﾞ", "ロ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾛﾟ", "ロ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾜ", "ワ");
+        HALFWIDTH_KATAKANA_MAP.put("ﾜﾞ", "ワ゛");
+        HALFWIDTH_KATAKANA_MAP.put("ﾜﾟ", "ワ゜");
+        HALFWIDTH_KATAKANA_MAP.put("ﾝ", "ン");
+        HALFWIDTH_KATAKANA_MAP.put("ｦ゛", "ヲ゛");
+    }
+
+  private static String halfWidthKatakanaToFullWidthKatakana(String input) {
+    if (input == null || input.isEmpty()) {
+      return input;
+    }
+    StringBuilder result = new StringBuilder(input.length());
+    int i = 0;
+    while (i < input.length()) {
+      String mapped;
+      if (i + 1 < input.length()) {
+        mapped = HALFWIDTH_KATAKANA_MAP.get(input.substring(i, i + 2));
+        if (mapped != null) {
+          result.append(mapped);
+          i += 2;
+          continue;
+        }
+      }
+      mapped = HALFWIDTH_KATAKANA_MAP.get(String.valueOf(input.charAt(i)));
+      if (mapped != null) {
+        result.append(mapped);
+      } else {
+        result.append(input.charAt(i));
+      }
+      i++;
+    }
+    return result.toString();
+  }
+
+  private static String katakanaToHiragana(String input) {
+    StringBuilder result = new StringBuilder(input.length());
+    for (int i = 0; i < input.length(); ++i) {
+      char c = input.charAt(i);
+      if (c >= 0x30A1 && c <= 0x30FA) {
+        result.append((char) (c - 0x60));
+      } else {
+        result.append(c);
+      }
+    }
+    return result.toString();
   }
 }

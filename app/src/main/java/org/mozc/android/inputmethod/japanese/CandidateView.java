@@ -31,12 +31,12 @@ package org.mozc.android.inputmethod.japanese;
 
 import org.mozc.android.inputmethod.japanese.MozcView.InputFrameFoldButtonClickListener;
 import org.mozc.android.inputmethod.japanese.keyboard.BackgroundDrawableFactory.DrawableType;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidates.CandidateList;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidates.CandidateWord;
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidateWindow.CandidateList;
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidateWindow.CandidateWord;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Command;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input;
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input.CommandType;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.SessionCommand;
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input.CommandType;
 import org.mozc.android.inputmethod.japanese.R;
 import org.mozc.android.inputmethod.japanese.ui.CandidateLayoutRenderer.DescriptionLayoutPolicy;
 import org.mozc.android.inputmethod.japanese.ui.CandidateLayoutRenderer.ValueScalingPolicy;
@@ -313,7 +313,7 @@ public class CandidateView extends InOutAnimatedFrameLayout implements MemoryMan
     Input input = outCommand.getInput();
     CandidateList allCandidateWords = outCommand.getOutput().getAllCandidateWords();
     if (input.getType() == CommandType.SEND_COMMAND
-        && input.getCommand().getType() == SessionCommand.CommandType.EXPAND_SUGGESTION) {
+        && input.getCommand().getType() == SessionCommand.CommandType.NONE) {
       getConversionCandidateWordView().updateForExpandSuggestion(allCandidateWords);
     } else {
       getConversionCandidateWordView().update(allCandidateWords);

@@ -29,7 +29,7 @@
 
 package org.mozc.android.inputmethod.japanese.accessibility;
 
-import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidates.CandidateWord;
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoCandidateWindow.CandidateWord;
 import org.mozc.android.inputmethod.japanese.ui.CandidateLayout;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;

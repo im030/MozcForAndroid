@@ -226,7 +226,7 @@ public class FloatingModeIndicator {
     Preconditions.checkNotNull(command);
     Input input = command.getInput();
     if (input.getType() == Input.CommandType.SEND_COMMAND
-        && input.getCommand().getType() == SessionCommand.CommandType.SWITCH_INPUT_MODE) {
+        && input.getCommand().getType() == SessionCommand.CommandType.SWITCH_COMPOSITION_MODE) {
       // Simply ignores SWITCH_INPUT_MODE since the command doesn't have a composition text.
       return;
     }
