@@ -88,6 +88,16 @@ public class Keyboard {
         false,
         CrossingEdgeBehavior.COMMIT_WITHOUT_CONSUMING),
 
+    TWELVE_KEY_TOGGLE_QWERTY_ALPHABET_COMPACT(
+        new KeyboardSpecificationName("TWELVE_KEY_TOGGLE_QWERTY_ALPHABET", 0, 5, 0),
+        R.xml.kbd_qwerty_abc_compact,
+        false,
+        CompositionMode.HALF_ASCII,
+        SpecialRomanjiTable.QWERTY_MOBILE_TO_HALFWIDTHASCII,
+        SpaceOnAlphanumeric.COMMIT,
+        false,
+        CrossingEdgeBehavior.COMMIT_WITHOUT_CONSUMING),
+
     // Flick mode.
     TWELVE_KEY_FLICK_KANA(
         new KeyboardSpecificationName("TWELVE_KEY_FLICK_KANA", 0, 2, 0),
@@ -140,6 +150,16 @@ public class Keyboard {
         false,
         CrossingEdgeBehavior.DO_NOTHING),
 
+    QWERTY_KANA_COMPACT(
+        new KeyboardSpecificationName("QWERTY_KANA", 0, 4, 0),
+        R.xml.kbd_qwerty_kana_compact,
+        false,
+        CompositionMode.HIRAGANA,
+        SpecialRomanjiTable.QWERTY_MOBILE_TO_HIRAGANA,
+        SpaceOnAlphanumeric.SPACE_OR_CONVERT_KEEPING_COMPOSITION,
+        false,
+        CrossingEdgeBehavior.DO_NOTHING),
+
     QWERTY_ALPHABET(
         new KeyboardSpecificationName("QWERTY_ALPHABET", 0, 5, 0),
         R.xml.kbd_qwerty_abc,
@@ -150,9 +170,29 @@ public class Keyboard {
         false,
         CrossingEdgeBehavior.COMMIT_WITHOUT_CONSUMING),
 
+    QWERTY_ALPHABET_COMPACT(
+        new KeyboardSpecificationName("QWERTY_ALPHABET", 0, 5, 0),
+        R.xml.kbd_qwerty_abc_compact,
+        false,
+        CompositionMode.HALF_ASCII,
+        SpecialRomanjiTable.QWERTY_MOBILE_TO_HALFWIDTHASCII,
+        SpaceOnAlphanumeric.COMMIT,
+        false,
+        CrossingEdgeBehavior.COMMIT_WITHOUT_CONSUMING),
+
     QWERTY_ALPHABET_NUMBER(
         new KeyboardSpecificationName("QWERTY_ALPHABET_NUMBER", 0, 3, 0),
         R.xml.kbd_qwerty_abc_123,
+        false,
+        CompositionMode.HALF_ASCII,
+        SpecialRomanjiTable.QWERTY_MOBILE_TO_HALFWIDTHASCII,
+        SpaceOnAlphanumeric.COMMIT,
+        false,
+        CrossingEdgeBehavior.COMMIT_WITHOUT_CONSUMING),
+
+    QWERTY_ALPHABET_NUMBER_COMPACT(
+        new KeyboardSpecificationName("QWERTY_ALPHABET_NUMBER", 0, 3, 0),
+        R.xml.kbd_qwerty_abc_123_compact,
         false,
         CompositionMode.HALF_ASCII,
         SpecialRomanjiTable.QWERTY_MOBILE_TO_HALFWIDTHASCII,

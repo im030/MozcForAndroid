@@ -123,6 +123,8 @@ public class PreferenceUtil {
   // Keys for Keyboard Layout.
   public static final String PREF_CURRENT_KEYBOARD_LAYOUT_KEY =
       "pref_current_keyboard_layout_key";
+  public static final String PREF_QWERTY_COMPACT_MODE_KEY =
+      "pref_qwerty_compact_mode_key";
 
   public static final String PREF_SOFTWARE_KEYBOARD_ADVANED_PORTRAIT_KEY =
       "pref_software_keyboard_advanced_portrait_key";

@@ -105,6 +105,7 @@ public class ClientSidePreference {
   private final KeyboardLayout keyboardLayout;
   private final InputStyle inputStyle;
   private final boolean qwertyLayoutForAlphabet;
+  private final boolean qwertyCompactMode;
   private final boolean englishWordSuggestions;
   private final boolean englishWordSuggestionsInsertSpace;
   private final boolean fullscreenMode;
@@ -128,7 +129,7 @@ public class ClientSidePreference {
       InputStyle inputStyle, boolean qwertyLayoutForAlphabet, boolean fullscreenMode,
       int flickSensitivity, EmojiProviderType emojiProviderType, HardwareKeyMap hardwareKeyMap,
       SkinType skinType, boolean isMicrophoneButtonEnabled, LayoutAdjustment layoutAdjustment,
-      int keyboardHeightRatio) {
+      int keyboardHeightRatio, boolean qwertyCompactMode) {
     this.isHapticFeedbackEnabled = isHapticFeedbackEnabled;
     this.hapticFeedbackDuration = hapticFeedbackDuration;
     this.isSoundFeedbackEnabled = isSoundFeedbackEnabled;
@@ -147,6 +148,7 @@ public class ClientSidePreference {
     this.isMicrophoneButtonEnabled = isMicrophoneButtonEnabled;
     this.layoutAdjustment = Preconditions.checkNotNull(layoutAdjustment);
     this.keyboardHeightRatio = keyboardHeightRatio;
+    this.qwertyCompactMode = qwertyCompactMode;
   }
 
   public ClientSidePreference(
@@ -202,6 +204,8 @@ public class ClientSidePreference {
         InputStyle.class, InputStyle.TOGGLE_FLICK);
     qwertyLayoutForAlphabet =
         sharedPreferences.getBoolean(qwertyLayoutForAlphabetKey, false);
+    qwertyCompactMode =
+        sharedPreferences.getBoolean(PreferenceUtil.PREF_QWERTY_COMPACT_MODE_KEY, false);
     englishWordSuggestions =
         sharedPreferences.getBoolean(PreferenceUtil.PREF_ENGLISH_WORD_SUGGESTIONS_KEY, true);
     englishWordSuggestionsInsertSpace = sharedPreferences.getBoolean(
@@ -258,6 +262,10 @@ public class ClientSidePreference {
 
   public boolean isQwertyLayoutForAlphabet() {
     return qwertyLayoutForAlphabet;
+  }
+
+  public boolean isQwertyCompactMode() {
+    return qwertyCompactMode;
   }
 
   public boolean isEnglishWordSuggestionsEnabled() {

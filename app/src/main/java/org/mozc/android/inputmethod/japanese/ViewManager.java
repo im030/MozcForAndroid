@@ -803,6 +803,16 @@ public class ViewManager implements ViewManagerInterface {
   }
 
   @Override
+  public void setQwertyCompactMode(boolean qwertyCompactMode) {
+    if (japaneseSoftwareKeyboardModel.isQwertyCompactMode() != qwertyCompactMode) {
+      keyboardFactory.clear();
+    }
+
+    japaneseSoftwareKeyboardModel.setQwertyCompactMode(qwertyCompactMode);
+    propagateSoftwareKeyboardChange(Collections.<TouchEvent>emptyList());
+  }
+
+  @Override
   public void setFullscreenMode(boolean fullscreenMode) {
     this.fullscreenMode = fullscreenMode;
     if (mozcView != null) {

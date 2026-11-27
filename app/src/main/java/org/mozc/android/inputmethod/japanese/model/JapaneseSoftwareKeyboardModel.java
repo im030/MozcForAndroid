@@ -99,6 +99,7 @@ public class JapaneseSoftwareKeyboardModel {
   private KeyboardMode keyboardMode = DEFAULT_KEYBOARD_MODE;
   private InputStyle inputStyle = InputStyle.TOGGLE;
   private boolean qwertyLayoutForAlphabet = false;
+  private boolean qwertyCompactMode = false;
   private int inputType;
   private int imeOptions;
 
@@ -150,6 +151,14 @@ public class JapaneseSoftwareKeyboardModel {
 
   public void setQwertyLayoutForAlphabet(boolean qwertyLayoutForAlphabet) {
     this.qwertyLayoutForAlphabet = qwertyLayoutForAlphabet;
+  }
+
+  public boolean isQwertyCompactMode() {
+    return qwertyCompactMode;
+  }
+
+  public void setQwertyCompactMode(boolean qwertyCompactMode) {
+    this.qwertyCompactMode = qwertyCompactMode;
   }
 
   /**
@@ -236,7 +245,7 @@ public class JapaneseSoftwareKeyboardModel {
    */
   public KeyboardSpecification getKeyboardSpecification() {
     return getKeyboardSpecificationInternal(
-        keyboardLayout, keyboardMode, inputStyle, qwertyLayoutForAlphabet);
+        keyboardLayout, keyboardMode, inputStyle, qwertyLayoutForAlphabet, qwertyCompactMode);
   }
 
   /**
@@ -246,16 +255,17 @@ public class JapaneseSoftwareKeyboardModel {
       KeyboardLayout keyboardLayout,
       KeyboardMode keyboardMode,
       InputStyle inputStyle,
-      boolean qwertyLayoutForAlphabet) {
+      boolean qwertyLayoutForAlphabet,
+      boolean qwertyCompactMode) {
     try {
       switch (keyboardLayout) {
         case TWELVE_KEYS:
           return getTwelveKeysKeyboardSpecification(
-              keyboardMode, inputStyle, qwertyLayoutForAlphabet);
+              keyboardMode, inputStyle, qwertyLayoutForAlphabet, qwertyCompactMode);
         case QWERTY:
-          return getQwertyKeyboardSpecification(keyboardMode);
+          return getQwertyKeyboardSpecification(keyboardMode, qwertyCompactMode);
         case GODAN:
-          return getGodanKeyboardSpecification(keyboardMode);
+          return getGodanKeyboardSpecification(keyboardMode, qwertyCompactMode);
         case JIS_KANA:
           return getJisKanaKeyboardSpecification(keyboardMode);
         case JIS_ROMAJI:
@@ -278,7 +288,8 @@ public class JapaneseSoftwareKeyboardModel {
   }
 
   private static KeyboardSpecification getTwelveKeysKeyboardSpecification(
-      KeyboardMode keyboardMode, InputStyle inputStyle, boolean qwertyLayoutForAlphabet) {
+      KeyboardMode keyboardMode, InputStyle inputStyle, boolean qwertyLayoutForAlphabet,
+      boolean qwertyCompactMode) {
     switch (keyboardMode) {
       case KANA: {
         switch (inputStyle) {
@@ -290,7 +301,9 @@ public class JapaneseSoftwareKeyboardModel {
       }
       case ALPHABET: {
         if (qwertyLayoutForAlphabet) {
-          return KeyboardSpecification.TWELVE_KEY_TOGGLE_QWERTY_ALPHABET;
+          return qwertyCompactMode
+              ? KeyboardSpecification.TWELVE_KEY_TOGGLE_QWERTY_ALPHABET_COMPACT
+              : KeyboardSpecification.TWELVE_KEY_TOGGLE_QWERTY_ALPHABET;
         }
         switch (inputStyle) {
           case TOGGLE: return KeyboardSpecification.TWELVE_KEY_TOGGLE_ALPHABET;
@@ -301,7 +314,9 @@ public class JapaneseSoftwareKeyboardModel {
       }
       case ALPHABET_NUMBER: {
         if (qwertyLayoutForAlphabet) {
-          return KeyboardSpecification.QWERTY_ALPHABET_NUMBER;
+          return qwertyCompactMode
+              ? KeyboardSpecification.QWERTY_ALPHABET_NUMBER_COMPACT
+              : KeyboardSpecification.QWERTY_ALPHABET_NUMBER;
         }
         switch (inputStyle) {
           case TOGGLE: return KeyboardSpecification.TWELVE_KEY_TOGGLE_ALPHABET;
@@ -320,22 +335,39 @@ public class JapaneseSoftwareKeyboardModel {
             + keyboardMode + ", " + inputStyle + ", " + qwertyLayoutForAlphabet);
   }
 
-  private static KeyboardSpecification getQwertyKeyboardSpecification(KeyboardMode keyboardMode) {
+  private static KeyboardSpecification getQwertyKeyboardSpecification(
+      KeyboardMode keyboardMode, boolean qwertyCompactMode) {
     switch (keyboardMode) {
-      case KANA: return KeyboardSpecification.QWERTY_KANA;
-      case ALPHABET: return KeyboardSpecification.QWERTY_ALPHABET;
-      case ALPHABET_NUMBER: return KeyboardSpecification.QWERTY_ALPHABET_NUMBER;
+      case KANA:
+        return qwertyCompactMode
+            ? KeyboardSpecification.QWERTY_KANA_COMPACT
+            : KeyboardSpecification.QWERTY_KANA;
+      case ALPHABET:
+        return qwertyCompactMode
+            ? KeyboardSpecification.QWERTY_ALPHABET_COMPACT
+            : KeyboardSpecification.QWERTY_ALPHABET;
+      case ALPHABET_NUMBER:
+        return qwertyCompactMode
+            ? KeyboardSpecification.QWERTY_ALPHABET_NUMBER_COMPACT
+            : KeyboardSpecification.QWERTY_ALPHABET_NUMBER;
       case NUMBER: return KeyboardSpecification.NUMBER;
       case SYMBOL_NUMBER: return KeyboardSpecification.SYMBOL_NUMBER;
     }
     throw new IllegalArgumentException("Unknown keyboard mode: " + keyboardMode);
   }
 
-  private static KeyboardSpecification getGodanKeyboardSpecification(KeyboardMode keyboardMode) {
+  private static KeyboardSpecification getGodanKeyboardSpecification(
+      KeyboardMode keyboardMode, boolean qwertyCompactMode) {
     switch (keyboardMode) {
       case KANA: return KeyboardSpecification.GODAN_KANA;
-      case ALPHABET: return KeyboardSpecification.QWERTY_ALPHABET;
-      case ALPHABET_NUMBER: return KeyboardSpecification.QWERTY_ALPHABET_NUMBER;
+      case ALPHABET:
+        return qwertyCompactMode
+            ? KeyboardSpecification.QWERTY_ALPHABET_COMPACT
+            : KeyboardSpecification.QWERTY_ALPHABET;
+      case ALPHABET_NUMBER:
+        return qwertyCompactMode
+            ? KeyboardSpecification.QWERTY_ALPHABET_NUMBER_COMPACT
+            : KeyboardSpecification.QWERTY_ALPHABET_NUMBER;
       case NUMBER: return KeyboardSpecification.NUMBER;
       case SYMBOL_NUMBER: return KeyboardSpecification.SYMBOL_NUMBER;
     }

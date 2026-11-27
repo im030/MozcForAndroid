@@ -2136,6 +2136,10 @@ public class MozcBaseService extends InputMethodService {
       viewManager.setQwertyLayoutForAlphabet(newPreference.isQwertyLayoutForAlphabet());
     }
     if (oldPreference == null
+        || oldPreference.isQwertyCompactMode() != newPreference.isQwertyCompactMode()) {
+      viewManager.setQwertyCompactMode(newPreference.isQwertyCompactMode());
+    }
+    if (oldPreference == null
         || oldPreference.isFullscreenMode() != newPreference.isFullscreenMode()) {
       viewManager.setFullscreenMode(
           applicationCompatibility.isFullScreenModeSupported() && newPreference.isFullscreenMode());

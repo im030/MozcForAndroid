@@ -213,6 +213,30 @@ public class KeyboardView extends View implements MemoryManageable {
 
   private Optional<KeyEventHandler> keyEventHandler = Optional.absent();
 
+  // State for horizontal cursor drag on the space bar in QWERTY_KANA_COMPACT mode.
+  private int spaceDragPointerId = MotionEvent.INVALID_POINTER_ID;
+  private float spaceDragStartX = 0f;
+  private float spaceDragLastStepX = 0f;
+  private boolean spaceDragActivated = false;
+
+  private void resetSpaceDragState() {
+    spaceDragPointerId = MotionEvent.INVALID_POINTER_ID;
+    spaceDragStartX = 0f;
+    spaceDragLastStepX = 0f;
+    spaceDragActivated = false;
+  }
+
+  private boolean isCompactSpaceCursorDragEnabled() {
+    if (!keyboard.isPresent()) {
+      return false;
+    }
+    Keyboard.KeyboardSpecification spec = keyboard.get().getSpecification();
+    return spec == Keyboard.KeyboardSpecification.QWERTY_KANA_COMPACT
+        || spec == Keyboard.KeyboardSpecification.QWERTY_ALPHABET_COMPACT
+        || spec == Keyboard.KeyboardSpecification.QWERTY_ALPHABET_NUMBER_COMPACT
+        || spec == Keyboard.KeyboardSpecification.TWELVE_KEY_TOGGLE_QWERTY_ALPHABET_COMPACT;
+  }
+
   // This constructor is package private for this unit test.
   public KeyboardView(Context context) {
     super(context);
@@ -313,6 +337,7 @@ public class KeyboardView extends View implements MemoryManageable {
       disposeKeyEventContext(keyEventContext);
     }
     keyEventContextMap.clear();
+    resetSpaceDragState();
   }
 
   private void flushPendingKeyEvent(Optional<TouchEvent> relativeTouchEvent) {
@@ -329,14 +354,20 @@ public class KeyboardView extends View implements MemoryManageable {
     for (KeyEventContext keyEventContext : keyEventContextArray) {
       int keyCode = keyEventContext.getKeyCode();
       int pressedKeyCode = keyEventContext.getPressedKeyCode();
+      boolean suppressKey = spaceDragActivated && keyEventContext.pointerId == spaceDragPointerId;
+      if (keyEventContext.pointerId == spaceDragPointerId) {
+        resetSpaceDragState();
+      }
       disposeKeyEventContext(keyEventContext);
       if (keyEventHandler.isPresent()) {
-        // Send relativeTouchEvent as well if exists.
-        // TODO(hsumita): Confirm that we can put null on touchEventList or not.
-        List<TouchEvent> touchEventList = relativeTouchEvent.isPresent()
-            ? Arrays.asList(relativeTouchEvent.get(), keyEventContext.getTouchEvent().orNull())
-            : Collections.singletonList(keyEventContext.getTouchEvent().orNull());
-        keyEventHandler.get().sendKey(keyCode, touchEventList);
+        if (!suppressKey) {
+          // Send relativeTouchEvent as well if exists.
+          // TODO(hsumita): Confirm that we can put null on touchEventList or not.
+          List<TouchEvent> touchEventList = relativeTouchEvent.isPresent()
+              ? Arrays.asList(relativeTouchEvent.get(), keyEventContext.getTouchEvent().orNull())
+              : Collections.singletonList(keyEventContext.getTouchEvent().orNull());
+          keyEventHandler.get().sendKey(keyCode, touchEventList);
+        }
         keyEventHandler.get().sendRelease(pressedKeyCode);
       }
     }
@@ -496,6 +527,13 @@ public class KeyboardView extends View implements MemoryManageable {
     Preconditions.checkState(
         keyEventContextMap.put(pointerId, keyEventContext) == null,
         "Conflicting keyEventContext is found: " + pointerId);
+    if (isCompactSpaceCursorDragEnabled()
+        && keyEventContext.getPressedKeyCode() == resources.getInteger(R.integer.uchar_space)) {
+      spaceDragPointerId = pointerId;
+      spaceDragStartX = x;
+      spaceDragLastStepX = x;
+      spaceDragActivated = false;
+    }
   }
 
   private void processKeyEventContextForOnDownEvent(
@@ -551,6 +589,19 @@ public class KeyboardView extends View implements MemoryManageable {
     float x = event.getX(pointerIndex);
     float y = event.getY(pointerIndex);
     keyEventContext.update(x, y, TouchAction.TOUCH_UP, event.getEventTime() - event.getDownTime());
+
+    if (spaceDragActivated && keyEventContext.pointerId == spaceDragPointerId) {
+      resetSpaceDragState();
+      disposeKeyEventContext(keyEventContext);
+      if (keyEventHandler.isPresent()) {
+        keyEventHandler.get().sendRelease(keyEventContext.getPressedKeyCode());
+      }
+      backgroundSurface.removePressedKey(keyEventContext.key);
+      return;
+    }
+    if (keyEventContext.pointerId == spaceDragPointerId) {
+      resetSpaceDragState();
+    }
 
     processKeyEventContextForOnUpEvent(keyEventContext);
   }
@@ -613,6 +664,34 @@ public class KeyboardView extends View implements MemoryManageable {
 
       if (strokeKey != null) {
         processStrokeOnMove(event.getX(), event.getY(), keyEventContext);
+      }
+
+      if (keyEventContext.pointerId == spaceDragPointerId && isCompactSpaceCursorDragEnabled()) {
+        float currentX = event.getX(i);
+        if (!spaceDragActivated) {
+          float touchSlop = android.view.ViewConfiguration.get(getContext()).getScaledTouchSlop();
+          if (Math.abs(currentX - spaceDragStartX) >= touchSlop) {
+            spaceDragActivated = true;
+            spaceDragLastStepX = currentX;
+            if (keyEventHandler.isPresent()) {
+              keyEventHandler.get().cancelDelayedKeyEvent(keyEventContext);
+            }
+            popupPreviewPool.releaseDelayed(keyEventContext.pointerId, 0L);
+          }
+        }
+        if (spaceDragActivated && keyEventHandler.isPresent()) {
+          float stepPx = Math.max(1f, resources.getDisplayMetrics().density * 14f);
+          while (currentX - spaceDragLastStepX >= stepPx) {
+            keyEventHandler.get().sendKey(
+                resources.getInteger(R.integer.key_right), Collections.<TouchEvent>emptyList());
+            spaceDragLastStepX += stepPx;
+          }
+          while (spaceDragLastStepX - currentX >= stepPx) {
+            keyEventHandler.get().sendKey(
+                resources.getInteger(R.integer.key_left), Collections.<TouchEvent>emptyList());
+            spaceDragLastStepX -= stepPx;
+          }
+        }
       }
 
       Key key = keyEventContext.key;

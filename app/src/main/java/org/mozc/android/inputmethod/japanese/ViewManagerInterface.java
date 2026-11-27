@@ -165,6 +165,8 @@ public interface ViewManagerInterface extends MemoryManageable {
 
   public void setQwertyLayoutForAlphabet(boolean qwertyLayoutForAlphabet);
 
+  public void setQwertyCompactMode(boolean qwertyCompactMode);
+
   public void setFullscreenMode(boolean fullscreenMode);
 
   public boolean isFullscreenMode();
