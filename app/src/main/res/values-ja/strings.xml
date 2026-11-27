@@ -261,6 +261,7 @@
 
       <!-- List of Japanese POS -->
       <!-- You should keep a consistency with japanese_pos_for_dictionary_export_*. -->
+      <string name="japanese_pos_no_pos">未指定</string>
       <string name="japanese_pos_noun">名詞</string>
       <string name="japanese_pos_abbreviation">短縮よみ</string>
       <string name="japanese_pos_suggestion_only">サジェストのみ</string>

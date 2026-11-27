@@ -322,6 +322,7 @@ class UserDictionaryUtil {
   private static final Map<PosType, Integer> POS_RESOURCE_MAP;
   static {
     EnumMap<PosType, Integer> map = new EnumMap<PosType, Integer>(PosType.class);
+    map.put(PosType.NO_POS, R.string.japanese_pos_no_pos);
     map.put(PosType.NOUN, R.string.japanese_pos_noun);
     map.put(PosType.ABBREVIATION, R.string.japanese_pos_abbreviation);
     map.put(PosType.SUGGESTION_ONLY, R.string.japanese_pos_suggestion_only);
@@ -379,6 +380,7 @@ class UserDictionaryUtil {
   private static final Map<PosType, Integer> POS_RESOURCE_MAP_FOR_DICTIONARY_EXPORT;
   static {
     EnumMap<PosType, Integer> map = new EnumMap<PosType, Integer>(PosType.class);
+    map.put(PosType.NO_POS, R.string.japanese_pos_for_dictionary_export_no_pos);
     map.put(PosType.NOUN, R.string.japanese_pos_for_dictionary_export_noun);
     map.put(PosType.ABBREVIATION, R.string.japanese_pos_for_dictionary_export_abbreviation);
     map.put(PosType.SUGGESTION_ONLY, R.string.japanese_pos_for_dictionary_export_suggestion_only);
