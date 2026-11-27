@@ -853,6 +853,10 @@ public class MozcView extends FrameLayout implements MemoryManageable {
     if (symbolInputView.isInflated() && symbolInputView.getVisibility() == View.VISIBLE) {
       keyboardFrame = getNumberKeyboardFrame();
       keyboardFrameHeight = symbolInputView.getNumberKeyboardHeight();
+      // Hide the regular keyboard behind the symbol input view, so that the parts of the
+      // symbol view which are transparent (e.g. the numpad's candidate area) do not show
+      // the keyboard ghosted through.
+      getKeyboardFrame().setVisibility(View.GONE);
     } else {
       keyboardFrame = getKeyboardFrame();
       keyboardFrameHeight = getInputFrameHeight();

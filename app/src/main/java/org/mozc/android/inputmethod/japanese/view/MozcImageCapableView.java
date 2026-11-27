@@ -58,6 +58,10 @@ public interface MozcImageCapableView {
         "http://schemas.android.com/apk/res/android";
     private static final String XML_NAMESPACE_MOZC =
         "http://schemas.android.com/apk/res-auto";
+    private int derivedTopPadding = 0;
+    private int derivedBottomPadding = 0;
+    private int derivedLeftPadding = 0;
+    private int derivedRightPadding = 0;
     private Skin skin = Skin.getFallbackInstance();
     private int rawId = INVALID_RESOURCE_ID;
     private int maxImageWidth = UNSPECIFIED_SIZE;
@@ -133,15 +137,22 @@ public interface MozcImageCapableView {
 
     private void updateAdditionalHorizontalPadding() {
       ImageView imageView = baseView.asImageView();
-      int paddingLeft = baseView.asImageView().getPaddingLeft();
-      int paddingRight = baseView.asImageView().getPaddingRight();
+      int paddingLeft = baseView.asImageView().getPaddingLeft() - derivedLeftPadding;
+      int paddingRight = baseView.asImageView().getPaddingRight() - derivedRightPadding;
       int additionalHorizontalPadding = maxImageWidth < 0 ? 0 : Math.max(
           0, baseView.asImageView().getWidth() - paddingLeft - paddingRight - maxImageWidth);
       if (additionalHorizontalPadding == 0) {
+        derivedLeftPadding = 0;
+        derivedRightPadding = 0;
+        baseView.asImageView().setPadding(
+            paddingLeft, baseView.asImageView().getPaddingTop(), paddingRight,
+            baseView.asImageView().getPaddingBottom());
         return;
       }
       int additionalLeftPadding = additionalHorizontalPadding / 2;
       int additionalRightPadding = additionalHorizontalPadding - additionalLeftPadding;
+      derivedLeftPadding = additionalLeftPadding;
+      derivedRightPadding = additionalRightPadding;
       baseView.asImageView().setPadding(
           paddingLeft + additionalLeftPadding,
           imageView.getPaddingTop(),
@@ -152,15 +163,21 @@ public interface MozcImageCapableView {
 
     private void updateAdditionalVerticalPadding() {
       ImageView imageView = baseView.asImageView();
-      int paddingTop = imageView.getPaddingTop();
-      int paddingBottom = imageView.getPaddingBottom();
+      int paddingTop = imageView.getPaddingTop() - derivedTopPadding;
+      int paddingBottom = imageView.getPaddingBottom() - derivedBottomPadding;
       int additionalVerticalPadding = maxImageHeight < 0
-          ? 0 : imageView.getHeight() - paddingTop - paddingBottom - maxImageHeight;
+          ? 0 : Math.max(0, imageView.getHeight() - paddingTop - paddingBottom - maxImageHeight);
       if (additionalVerticalPadding == 0) {
+        derivedTopPadding = 0;
+        derivedBottomPadding = 0;
+        baseView.asImageView().setPadding(
+            imageView.getPaddingLeft(), paddingTop, imageView.getPaddingRight(), paddingBottom);
         return;
       }
       int additionalTopPadding = additionalVerticalPadding / 2;
       int additionalBottomPadding = additionalVerticalPadding - additionalTopPadding;
+      derivedTopPadding = additionalTopPadding;
+      derivedBottomPadding = additionalBottomPadding;
       baseView.asImageView().setPadding(
           imageView.getPaddingLeft(),
           paddingTop + additionalTopPadding,

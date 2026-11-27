@@ -294,6 +294,9 @@ public class BufferedDrawable extends Drawable {
         Bitmap.Config.ARGB_8888);
     // Draw the base Drawable on the bitmap through on-memory canvas.
     Canvas onMemoryCanvas = TEMPORARY_CANVAS.get();
+    // Attach the bitmap before configuring the matrix, because on Android O+ (targetSdk >= 26)
+    // Canvas#setBitmap() resets the canvas matrix and clip.
+    onMemoryCanvas.setBitmap(bitmap);
     // Apply transformation and scale based on the canvas's matrix.
     // NOTE: Skew and/or rotation are not supported.
     onMemoryCanvas.setMatrix(null);  // As the canvas is on-memory, setMatrix works well.
@@ -301,7 +304,6 @@ public class BufferedDrawable extends Drawable {
                              Math.min(0, matrixValues[Matrix.MTRANS_Y]));
     onMemoryCanvas.scale(matrixValues[Matrix.MSCALE_X], matrixValues[Matrix.MSCALE_Y]);
     // Render baseDrawable.
-    onMemoryCanvas.setBitmap(bitmap);
     baseDrawable.draw(onMemoryCanvas);
     // Release the bitmap from on-memory canvas for smaller memory footprint.
     onMemoryCanvas.setBitmap(null);
