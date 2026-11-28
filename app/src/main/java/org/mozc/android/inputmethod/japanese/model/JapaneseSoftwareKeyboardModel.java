@@ -103,6 +103,7 @@ public class JapaneseSoftwareKeyboardModel {
   private boolean qwertyCompactMode = false;
   private int inputType;
   private int imeOptions;
+  private boolean editorInfoSet = false;
 
   // This is just saved mode for setInputType. So, after that when qwertyLayoutForAlphabet is
   // edited, the mode can be un-expected one.
@@ -120,8 +121,9 @@ public class JapaneseSoftwareKeyboardModel {
 
   public void setKeyboardLayout(KeyboardLayout keyboardLayout) {
     Preconditions.checkNotNull(keyboardLayout);
-    Optional<KeyboardMode> optionalMode =
-        getPreferredKeyboardMode(this.inputType, this.imeOptions, keyboardLayout);
+    Optional<KeyboardMode> optionalMode = editorInfoSet
+        ? getPreferredKeyboardMode(this.inputType, this.imeOptions, keyboardLayout)
+        : Optional.absent();
     KeyboardMode mode = optionalMode.or(defaultKeyboardMode);
 
     this.keyboardLayout = keyboardLayout;
@@ -138,8 +140,9 @@ public class JapaneseSoftwareKeyboardModel {
   }
 
   public void resetKeyboardModeToDefault() {
-    Optional<KeyboardMode> optionalMode =
-        getPreferredKeyboardMode(this.inputType, this.imeOptions, this.keyboardLayout);
+    Optional<KeyboardMode> optionalMode = editorInfoSet
+        ? getPreferredKeyboardMode(this.inputType, this.imeOptions, this.keyboardLayout)
+        : Optional.absent();
     this.keyboardMode = optionalMode.or(defaultKeyboardMode);
     this.savedMode = Optional.absent();
   }
@@ -189,6 +192,7 @@ public class JapaneseSoftwareKeyboardModel {
    * if necessary. See the class comment for details.
    */
   public void setInputType(int inputType, int imeOptions) {
+    editorInfoSet = true;
     Optional<KeyboardMode> mode =
         getPreferredKeyboardMode(inputType, imeOptions, this.keyboardLayout);
     if (mode.isPresent()) {
