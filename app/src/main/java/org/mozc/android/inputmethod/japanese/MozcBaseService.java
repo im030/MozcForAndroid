@@ -1750,6 +1750,7 @@ public class MozcBaseService extends InputMethodService {
     resetContext();
     selectionTracker.onWindowHidden();
     viewManager.reset();
+    viewManager.onWindowHidden();
     hideStatusIcon();
     // MemoryTrimmingHandler.DURATION_MS from now, memory trimming will be done.
     // If the window is shown before MemoryTrimmingHandler.DURATION_MS,
@@ -2133,6 +2134,10 @@ public class MozcBaseService extends InputMethodService {
       viewManager.setPopupEnabled(newPreference.isPopupFeedbackEnabled());
     }
     if (oldPreference == null
+        || oldPreference.isRememberLastUsedLanguage() != newPreference.isRememberLastUsedLanguage()) {
+      viewManager.setRememberLastUsedLanguage(newPreference.isRememberLastUsedLanguage());
+    }
+    if (oldPreference == null
         || oldPreference.getKeyboardLayout() != newPreference.getKeyboardLayout()) {
       viewManager.setKeyboardLayout(newPreference.getKeyboardLayout());
     }
@@ -2231,6 +2236,9 @@ public class MozcBaseService extends InputMethodService {
         if (viewManager != null) {
           viewManager.refreshCustomBackground();
         }
+        return;
+      }
+      if (PreferenceUtil.PREF_LAST_USED_KEYBOARD_MODE_KEY.equals(key)) {
         return;
       }
       propagateClientSidePreference(

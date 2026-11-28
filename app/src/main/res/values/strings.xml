@@ -63,6 +63,8 @@
         <string name="pref_qwerty_layout_for_alphabet_title">QWERTY mode</string>
         <string name="pref_qwerty_compact_mode_title">Compact QWERTY mode</string>
         <string name="pref_qwerty_compact_mode_description">Hide arrow, globe, and ー keys on Japanese QWERTY keyboard; drag space bar left/right to move cursor.</string>
+        <string name="pref_remember_last_used_language_title">Remember last used language</string>
+        <string name="pref_remember_last_used_language_description">Use the last used language (Japanese or English) when opening or switching to this keyboard.</string>
         <string name="pref_english_word_suggestions_title">English word suggestions</string>
         <string name="pref_english_word_suggestions_description">Show English word completions from the dictionary while typing in alphabet (English) mode</string>
         <string name="pref_english_word_suggestions_insert_space_title">Insert space after word</string>

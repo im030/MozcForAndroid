@@ -167,6 +167,8 @@ public interface ViewManagerInterface extends MemoryManageable {
 
   public void setQwertyCompactMode(boolean qwertyCompactMode);
 
+  public void setRememberLastUsedLanguage(boolean rememberLastUsedLanguage);
+
   public void setFullscreenMode(boolean fullscreenMode);
 
   public boolean isFullscreenMode();
@@ -212,6 +214,8 @@ public interface ViewManagerInterface extends MemoryManageable {
    * Reset the status of the current input view.
    */
   public void reset();
+
+  public void onWindowHidden();
 
   public void computeInsets(
       Context context, InputMethodService.Insets outInsets, Window window);

@@ -51,6 +51,7 @@ import org.mozc.android.inputmethod.japanese.model.SymbolMajorCategory;
 import org.mozc.android.inputmethod.japanese.preference.ClientSidePreference.HardwareKeyMap;
 import org.mozc.android.inputmethod.japanese.preference.ClientSidePreference.InputStyle;
 import org.mozc.android.inputmethod.japanese.preference.ClientSidePreference.KeyboardLayout;
+import org.mozc.android.inputmethod.japanese.preference.PreferenceUtil;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Command;
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.CompositionMode;
@@ -68,6 +69,7 @@ import com.google.common.base.Preconditions;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Rect;
@@ -75,6 +77,7 @@ import android.inputmethodservice.InputMethodService;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Looper;
+import android.preference.PreferenceManager;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -133,10 +136,13 @@ public class ViewManager implements ViewManagerInterface {
         || primaryCode == keycodeChartypeToAbc123) {
       if (primaryCode == keycodeChartypeToKana) {
         japaneseSoftwareKeyboardModel.setKeyboardMode(KeyboardMode.KANA);
+        saveLastUsedKeyboardMode(KeyboardMode.KANA);
       } else if (primaryCode == keycodeChartypeToAbc) {
         japaneseSoftwareKeyboardModel.setKeyboardMode(KeyboardMode.ALPHABET);
+        saveLastUsedKeyboardMode(KeyboardMode.ALPHABET);
       } else if (primaryCode == keycodeChartypeToAbc123) {
         japaneseSoftwareKeyboardModel.setKeyboardMode(KeyboardMode.ALPHABET_NUMBER);
+        saveLastUsedKeyboardMode(KeyboardMode.ALPHABET);
       }
       propagateSoftwareKeyboardChange(touchEventList);
       return;
@@ -400,6 +406,11 @@ public class ViewManager implements ViewManagerInterface {
   /** Percentage of keyboard height */
   private int keyboardHeightRatio = 100;
 
+  @Nullable
+  private final SharedPreferences sharedPreferences;
+
+  private boolean rememberLastUsedLanguage = true;
+
   // Keycodes defined in resource files.
   // Printable keys are not defined. Refer them using character literal.
   // These are "constant values" as a matter of practice,
@@ -438,6 +449,8 @@ public class ViewManager implements ViewManagerInterface {
     Preconditions.checkNotNull(listener);
     Preconditions.checkNotNull(imeSwitcher);
     Preconditions.checkNotNull(hardwareKeyboard);
+
+    sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
 
     primaryKeyCodeConverter = new PrimaryKeyCodeConverter(context, guesser);
 
@@ -747,9 +760,10 @@ public class ViewManager implements ViewManagerInterface {
     }
 
     // Update S/W keyboard specification to keep a consistency with H/W keyboard.
-    japaneseSoftwareKeyboardModel.setKeyboardMode(
-        specification.getCompositionMode() == CompositionMode.HIRAGANA
-        ? KeyboardMode.KANA : KeyboardMode.ALPHABET);
+    KeyboardMode mode = specification.getCompositionMode() == CompositionMode.HIRAGANA
+        ? KeyboardMode.KANA : KeyboardMode.ALPHABET;
+    japaneseSoftwareKeyboardModel.setKeyboardMode(mode);
+    saveLastUsedKeyboardMode(mode);
 
     updateKeyboardView();
   }
@@ -810,6 +824,46 @@ public class ViewManager implements ViewManagerInterface {
 
     japaneseSoftwareKeyboardModel.setQwertyCompactMode(qwertyCompactMode);
     propagateSoftwareKeyboardChange(Collections.<TouchEvent>emptyList());
+  }
+
+  @Override
+  public void setRememberLastUsedLanguage(boolean rememberLastUsedLanguage) {
+    this.rememberLastUsedLanguage = rememberLastUsedLanguage;
+    KeyboardMode defaultMode =
+        rememberLastUsedLanguage ? getLastUsedKeyboardMode() : KeyboardMode.KANA;
+    japaneseSoftwareKeyboardModel.setDefaultKeyboardMode(defaultMode);
+    japaneseSoftwareKeyboardModel.resetKeyboardModeToDefault();
+  }
+
+  @Override
+  public void onWindowHidden() {
+    if (!rememberLastUsedLanguage) {
+      japaneseSoftwareKeyboardModel.resetKeyboardModeToDefault();
+    }
+  }
+
+  private void saveLastUsedKeyboardMode(KeyboardMode mode) {
+    if (!rememberLastUsedLanguage || (mode != KeyboardMode.KANA && mode != KeyboardMode.ALPHABET)) {
+      return;
+    }
+    japaneseSoftwareKeyboardModel.setDefaultKeyboardMode(mode);
+    if (sharedPreferences != null) {
+      sharedPreferences.edit()
+          .putString(PreferenceUtil.PREF_LAST_USED_KEYBOARD_MODE_KEY, mode.name())
+          .apply();
+    }
+  }
+
+  private KeyboardMode getLastUsedKeyboardMode() {
+    if (sharedPreferences == null) {
+      return KeyboardMode.KANA;
+    }
+    String modeName = sharedPreferences.getString(
+        PreferenceUtil.PREF_LAST_USED_KEYBOARD_MODE_KEY, KeyboardMode.KANA.name());
+    if (KeyboardMode.ALPHABET.name().equals(modeName)) {
+      return KeyboardMode.ALPHABET;
+    }
+    return KeyboardMode.KANA;
   }
 
   @Override

@@ -125,6 +125,10 @@ public class PreferenceUtil {
       "pref_current_keyboard_layout_key";
   public static final String PREF_QWERTY_COMPACT_MODE_KEY =
       "pref_qwerty_compact_mode_key";
+  public static final String PREF_REMEMBER_LAST_USED_LANGUAGE_KEY =
+      "pref_remember_last_used_language_key";
+  public static final String PREF_LAST_USED_KEYBOARD_MODE_KEY =
+      "pref_last_used_keyboard_mode_key";
 
   public static final String PREF_SOFTWARE_KEYBOARD_ADVANED_PORTRAIT_KEY =
       "pref_software_keyboard_advanced_portrait_key";

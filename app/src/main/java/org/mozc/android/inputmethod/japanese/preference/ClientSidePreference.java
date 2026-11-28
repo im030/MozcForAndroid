@@ -106,6 +106,7 @@ public class ClientSidePreference {
   private final InputStyle inputStyle;
   private final boolean qwertyLayoutForAlphabet;
   private final boolean qwertyCompactMode;
+  private final boolean rememberLastUsedLanguage;
   private final boolean englishWordSuggestions;
   private final boolean englishWordSuggestionsInsertSpace;
   private final boolean fullscreenMode;
@@ -149,6 +150,7 @@ public class ClientSidePreference {
     this.layoutAdjustment = Preconditions.checkNotNull(layoutAdjustment);
     this.keyboardHeightRatio = keyboardHeightRatio;
     this.qwertyCompactMode = qwertyCompactMode;
+    this.rememberLastUsedLanguage = true;
   }
 
   public ClientSidePreference(
@@ -206,6 +208,8 @@ public class ClientSidePreference {
         sharedPreferences.getBoolean(qwertyLayoutForAlphabetKey, false);
     qwertyCompactMode =
         sharedPreferences.getBoolean(PreferenceUtil.PREF_QWERTY_COMPACT_MODE_KEY, false);
+    rememberLastUsedLanguage =
+        sharedPreferences.getBoolean(PreferenceUtil.PREF_REMEMBER_LAST_USED_LANGUAGE_KEY, true);
     englishWordSuggestions =
         sharedPreferences.getBoolean(PreferenceUtil.PREF_ENGLISH_WORD_SUGGESTIONS_KEY, true);
     englishWordSuggestionsInsertSpace = sharedPreferences.getBoolean(
@@ -266,6 +270,10 @@ public class ClientSidePreference {
 
   public boolean isQwertyCompactMode() {
     return qwertyCompactMode;
+  }
+
+  public boolean isRememberLastUsedLanguage() {
+    return rememberLastUsedLanguage;
   }
 
   public boolean isEnglishWordSuggestionsEnabled() {

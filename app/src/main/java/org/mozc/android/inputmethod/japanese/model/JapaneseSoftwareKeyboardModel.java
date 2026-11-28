@@ -96,6 +96,7 @@ public class JapaneseSoftwareKeyboardModel {
   private static final KeyboardMode DEFAULT_KEYBOARD_MODE = KeyboardMode.KANA;
 
   private KeyboardLayout keyboardLayout = KeyboardLayout.TWELVE_KEYS;
+  private KeyboardMode defaultKeyboardMode = DEFAULT_KEYBOARD_MODE;
   private KeyboardMode keyboardMode = DEFAULT_KEYBOARD_MODE;
   private InputStyle inputStyle = InputStyle.TOGGLE;
   private boolean qwertyLayoutForAlphabet = false;
@@ -121,11 +122,25 @@ public class JapaneseSoftwareKeyboardModel {
     Preconditions.checkNotNull(keyboardLayout);
     Optional<KeyboardMode> optionalMode =
         getPreferredKeyboardMode(this.inputType, this.imeOptions, keyboardLayout);
-    KeyboardMode mode = optionalMode.or(DEFAULT_KEYBOARD_MODE);
+    KeyboardMode mode = optionalMode.or(defaultKeyboardMode);
 
     this.keyboardLayout = keyboardLayout;
     // Reset keyboard mode as well.
     this.keyboardMode = mode;
+    this.savedMode = Optional.absent();
+  }
+
+  public void setDefaultKeyboardMode(KeyboardMode defaultKeyboardMode) {
+    Preconditions.checkNotNull(defaultKeyboardMode);
+    Preconditions.checkArgument(
+        defaultKeyboardMode == KeyboardMode.KANA || defaultKeyboardMode == KeyboardMode.ALPHABET);
+    this.defaultKeyboardMode = defaultKeyboardMode;
+  }
+
+  public void resetKeyboardModeToDefault() {
+    Optional<KeyboardMode> optionalMode =
+        getPreferredKeyboardMode(this.inputType, this.imeOptions, this.keyboardLayout);
+    this.keyboardMode = optionalMode.or(defaultKeyboardMode);
     this.savedMode = Optional.absent();
   }
 
@@ -194,7 +209,7 @@ public class JapaneseSoftwareKeyboardModel {
       this.keyboardMode = mode.get();
     } else if (!REMEMBERABLE_KEYBOARD_MODE_SET.contains(this.keyboardMode)) {
       // Disable a non-rememberable keyboard here since neither mode nor saved mode are specified.
-      this.keyboardMode = DEFAULT_KEYBOARD_MODE;
+      this.keyboardMode = defaultKeyboardMode;
     }
   }
 

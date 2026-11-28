@@ -51,6 +51,12 @@
         android:summary="@string/pref_qwerty_compact_mode_description"
         android:title="@string/pref_qwerty_compact_mode_title" />
 
+    <SwitchPreference
+        android:defaultValue="true"
+        android:key="pref_remember_last_used_language_key"
+        android:summary="@string/pref_remember_last_used_language_description"
+        android:title="@string/pref_remember_last_used_language_title" />
+
     <!-- Link to advanced settings. -->
     <Preference
         android:key="pref_software_keyboard_advanced_settings"
