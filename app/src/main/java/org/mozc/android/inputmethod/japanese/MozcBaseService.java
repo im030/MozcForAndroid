@@ -839,10 +839,19 @@ public class MozcBaseService extends InputMethodService {
 
     @Override
     public boolean isAlphabetKeyboardMode() {
-      return viewManager != null
-          && viewManager.getActiveSoftwareKeyboardModel() != null
-          && viewManager.getActiveSoftwareKeyboardModel().getKeyboardMode()
-              == JapaneseSoftwareKeyboardModel.KeyboardMode.ALPHABET;
+      if (viewManager == null
+          || viewManager.getActiveSoftwareKeyboardModel() == null
+          || viewManager.getActiveSoftwareKeyboardModel().getKeyboardMode()
+              != JapaneseSoftwareKeyboardModel.KeyboardMode.ALPHABET) {
+        return false;
+      }
+      // 12-key non-QWERTY alphabet layouts send digit/symbol key codes (e.g. '2' on tap,
+      // '|' on flick-down) that Mozc's romanji table translates into letters/digits;
+      // EnglishInputSession only handles direct character input.
+      KeyboardSpecification spec = viewManager.getKeyboardSpecification();
+      return spec != KeyboardSpecification.TWELVE_KEY_TOGGLE_ALPHABET
+          && spec != KeyboardSpecification.TWELVE_KEY_FLICK_ALPHABET
+          && spec != KeyboardSpecification.TWELVE_KEY_TOGGLE_FLICK_ALPHABET;
     }
 
     @Override
