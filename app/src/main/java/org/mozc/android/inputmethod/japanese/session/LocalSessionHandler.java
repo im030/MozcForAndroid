@@ -41,6 +41,8 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -80,20 +82,64 @@ class LocalSessionHandler implements SessionHandler {
 //      }
 
       // Extract the bundled mozc.data data file for the conversion engine.
+      // A marker file records the version name and byte size of the copy we made. It lets
+      // us notice when the bundled asset has changed (e.g. after an app update ships an
+      // updated dictionary), instead of reusing a stale copy forever.
       File dataFile = new File(userProfileDirectory, "mozc.data");
-      if (!dataFile.exists()) {
-        MozcLog.i("copying bundled mozc.data -> " + dataFile.getAbsolutePath());
-        try (InputStream asset = context.getAssets().open("mozc.data");
-             FileOutputStream out = new FileOutputStream(dataFile)) {
-          byte[] buffer = new byte[64 * 1024];
-          int read;
-          while ((read = asset.read(buffer)) > 0) {
-            out.write(buffer, 0, read);
-          }
-        } catch (Exception e) {
-          MozcLog.e("Failed to copy bundled mozc.data: " + e.toString());
-          dataFile = null;
+      File markerFile = new File(userProfileDirectory, "mozc.data.marker");
+      try {
+        String versionName = context.getPackageManager()
+            .getPackageInfo(context.getPackageName(), 0).versionName;
+        String marker = null;
+        if (markerFile.exists() && markerFile.length() < 256) {
+          marker = new String(Files.readAllBytes(markerFile.toPath()),
+              StandardCharsets.UTF_8);
         }
+        boolean upToDate = false;
+        if (dataFile.exists() && marker != null && dataFile.length() > 0) {
+          int separator = marker.indexOf('|');
+          if (separator > 0
+              && marker.substring(0, separator).equals(versionName)) {
+            try {
+              long storedSize = Long.parseLong(marker.substring(separator + 1));
+              upToDate = storedSize == dataFile.length();
+            } catch (NumberFormatException ignored) {}
+          }
+        }
+        if (!upToDate) {
+          // Copy to a temp file and swap it in, so a failed copy never damages the
+          // existing mozc.data. A marker is written after the swap so that the
+          // refresh is detected on the next launch.
+          MozcLog.i("copying bundled mozc.data -> " + dataFile.getAbsolutePath());
+          File tempFile = new File(userProfileDirectory, ".mozc.data.tmp");
+          boolean copied = false;
+          try {
+            try (InputStream asset = context.getAssets().open("mozc.data");
+                FileOutputStream out = new FileOutputStream(tempFile)) {
+              byte[] buffer = new byte[64 * 1024];
+              int read;
+              while ((read = asset.read(buffer)) > 0) {
+                out.write(buffer, 0, read);
+              }
+            }
+            copied = tempFile.renameTo(dataFile);
+          } catch (Exception e) {
+            MozcLog.e("Failed to copy bundled mozc.data: " + e.toString());
+          } finally {
+            tempFile.delete();
+          }
+          if (copied) {
+            try {
+              Files.write(markerFile.toPath(),
+                  (versionName + "|" + dataFile.length())
+                      .getBytes(StandardCharsets.UTF_8));
+            } catch (Exception ignored) {}
+          } else if (!dataFile.exists()) {
+            dataFile = null;
+          }
+        }
+      } catch (Exception e) {
+        MozcLog.e("Version check failed; falling back to existing mozc.data: " + e);
       }
 
       // Load the shared object.

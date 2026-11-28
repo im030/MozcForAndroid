@@ -15,3 +15,4 @@
 local.properties
 /.mozc-bazel-cache
 app/src/main/jniLibs/arm64-v8a/*.so
+/third_party/dictionaries/

@@ -82,6 +82,27 @@ tasks.register('ensureMozcSubmodule') {
             }
         }
 
+        // Fast path: a marker holding the submodule HEAD + a hash of the patch files means the
+        // patches are in place and nothing changed — skip every subprocess we would otherwise
+        // spawn. The marker is deliberately not a Gradle output: the submodule is hidden from
+        // git (ignore = dirty), so no file underneath it can stand in for it.
+        def patchFiles = mozcPatchDir.listFiles()?.sort { it.name } ?: []
+        def headProc = new ProcessBuilder(['git', '-C', mozcDir.toString(), 'rev-parse', 'HEAD']).start()
+        def currentHead = headProc.inputStream.text.trim()
+        headProc.waitFor()
+        if (headProc.exitValue() != 0) {
+            throw new GradleException('git -C mozc rev-parse HEAD failed (exit ' + headProc.exitValue() + ')')
+        }
+        def md = java.security.MessageDigest.getInstance('SHA-256')
+        patchFiles.each { f -> md.update(f.bytes) }
+        def patchHash = md.digest().collect { String.format('%02x', it) }.join('')
+        def markerFile = rootProject.file('.mozc-bazel-cache/patches.marker')
+        def storedMarker = markerFile.exists() ? markerFile.text.trim() : null
+        if (storedMarker == "${currentHead}|${patchHash}") {
+            project.logger.lifecycle('Mozc submodule patches already applied')
+            return
+        }
+
         def applyPatch = { patchFilePath ->
             def patchFileName = new File(patchFilePath).name
             def mozcDirPath = "${rootDir}/mozc"
@@ -103,6 +124,97 @@ tasks.register('ensureMozcSubmodule') {
         }
 
         mozcPatchDir.eachFile { applyPatch(it.absolutePath) }
+
+        markerFile.parentFile.mkdirs()
+        markerFile.text = "${currentHead}|${patchHash}"
+        project.logger.lifecycle("Wrote patch marker (${patchFiles.size()} patch(es), HEAD ${currentHead})")
+    }
+}
+
+
+// The supplementary dictionaries. Downloads are skipped for any source whose installed file
+// already exists and passes the format check (see scripts/fetch_dictionaries.py), so a fresh
+// build downloads exactly once and every later build does nothing.
+//
+// A failed fetch is fatal by default; skip it with -PskipFetchDictionaries=true (or answer
+// "y" to the interactive prompt in a terminal — Gradle daemons usually have no console, so
+// the property is the reliable path) and the build continues with whatever is on disk.
+tasks.register('fetchDictionaries') {
+    group = 'mozc'
+    description = 'Fetch the supplementary dictionaries into third_party/dictionaries (skips sources whose installed files pass the format check).'
+    outputs.files(
+        rootProject.file('third_party/dictionaries/dic-nico-intersection-pixiv.txt'),
+        rootProject.file('third_party/dictionaries/katakana-english.txt'),
+        rootProject.file('third_party/dictionaries/jawiki.txt')
+    )
+    doLast {
+        def fetchScript = rootProject.file('scripts/fetch_dictionaries.py')
+        def proc = new ProcessBuilder('python3', fetchScript.absolutePath).start()
+        def err = new StringBuffer()
+        def errReader = new Thread({
+            proc.errorStream.text.eachLine { err.append(it).append('\n') }
+        } as Runnable)
+        errReader.daemon = true
+        errReader.start()
+        def out = proc.inputStream.text
+        def exitCode = proc.waitFor()
+        errReader.join(5000)
+        if (out.trim()) {
+            out.trim().eachLine { project.logger.lifecycle(it) }
+        }
+        if (err.length() > 0) {
+            err.toString().eachLine { project.logger.lifecycle(it) }
+        }
+        if (exitCode != 0) {
+            def skip = project.findProperty('skipFetchDictionaries')
+            def skipRequested = skip != null && String.valueOf(skip).trim().toLowerCase() in ['true', '1', 'yes', 'on']
+            def promptAnswer = null
+            def console = System.console()
+            if (console != null) {
+                try {
+                    promptAnswer = console.readLine('fetchDictionaries failed — continue without the supplementary dictionaries? [y/N] ')
+                } catch (Exception ignored) {
+                    promptAnswer = null
+                }
+            }
+            if (skipRequested || (promptAnswer != null && promptAnswer.trim().toLowerCase() in ['y', 'yes'])) {
+                project.logger.warn('fetchDictionaries failed; continuing without the supplementary dictionaries (generateSystemDictionary stages whatever is on disk)')
+                return
+            }
+            throw new GradleException("fetch_dictionaries.py failed (exit ${exitCode}); pass -PskipFetchDictionaries=true to continue without the supplementary dictionaries")
+        }
+    }
+}
+
+
+tasks.register('generateSystemDictionary') {
+    group = 'mozc'
+    description = 'Generate dictionary10.txt (bundled supplementary words) into the mozc dictionary sources.'
+    dependsOn 'ensureMozcSubmodule'
+    dependsOn 'fetchDictionaries'
+    inputs.files(rootProject.fileTree('third_party/dictionaries'))
+    outputs.file("${mozcSrcDir}/data/dictionary_oss/dictionary10.txt")
+    doLast {
+        def genScript = rootProject.file('scripts/gen_system_dictionary.py')
+        def outFile = file("${mozcSrcDir}/data/dictionary_oss/dictionary10.txt")
+        outFile.parentFile.mkdirs()
+        def proc = new ProcessBuilder('python3', genScript.absolutePath).start()
+        def err = new StringBuffer()
+        def errReader = new Thread({
+            proc.errorStream.text.eachLine { err.append(it).append('\n') }
+        } as Runnable)
+        errReader.daemon = true
+        errReader.start()
+        outFile.bytes = proc.inputStream.bytes
+        def exitCode = proc.waitFor()
+        errReader.join(5000)
+        if (exitCode != 0) {
+            throw new GradleException("gen_system_dictionary.py failed (exit ${exitCode}):\n" + err.toString())
+        }
+        if (err.length() > 0) {
+            err.toString().eachLine { project.logger.lifecycle(it) }
+        }
+        project.logger.lifecycle("==> dictionary10.txt written (" + outFile.length() + " bytes)")
     }
 }
 
@@ -124,7 +236,7 @@ tasks.register('buildMozcLib', Exec) {
 tasks.register('buildMozcData', Exec) {
     group = 'mozc'
     description = 'Build the Mozc data file (OSS) used by the mobile engine.'
-    dependsOn 'ensureMozcSubmodule'
+    dependsOn 'generateSystemDictionary'
     workingDir mozcSrcDir
     commandLine 'bazelisk',
         '--output_user_root=' + mozcCacheDirData.absolutePath,

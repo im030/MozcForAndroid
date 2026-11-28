@@ -1,0 +1,36 @@
+MozcForAndroid
+==============
+
+This application bundles software and data derived from the projects below.
+
+Mozc
+---
+Mozc is licensed under the BSD 3-Clause License.
+Copyright 2010-2025 Google Inc.
+Source: https://github.com/google/mozc
+
+The application bundles the Mozc JNI library (libmozc.so, built from target //android/jni:mozc.arm64)
+and the Mozc data file (assets/mozc.data, built from target //data_manager/oss:mozc_dataset_for_oss),
+built from the pinned submodule in mozc/.
+
+Bundled dictionaries (baked into assets/mozc.data at build time)
+--------------------------------------------------------------
+
+- dic-nico-intersection-pixiv
+  Source: https://github.com/ncaq/dic-nico-intersection-pixiv
+  Dictionary of words appearing in both Niconico Pedia and Pixiv Encyclopedia.
+  The upstream project does not claim copyright over the generated dictionary.
+
+- google-ime-user-dictionary-ja-en
+  Source: https://github.com/KEINOS/google-ime-user-dictionary-ja-en
+  A Japanese-English word list derived from the Electronic Dictionary of Japanese (EDICT),
+  licensed CC BY-SA 3.0.
+
+- mozcdic-ut-jawiki
+  Source: https://github.com/utuhiro78/mozcdic-ut-jawiki
+  Readings and surfaces harvested from the Japanese Wikipedia.
+  Licensed CC BY-SA 3.0.
+
+The three dictionaries are not shipped as assets; Gradle's generateSystemDictionary task compiles
+the fetched TSVs in third_party/dictionaries/ into the system dictionary at build time. See
+scripts/fetch_dictionaries.py and NOTICE for the details of how they are fetched.
